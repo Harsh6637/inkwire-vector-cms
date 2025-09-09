@@ -50,3 +50,10 @@ src/types/resource.d.ts
 # But keep actual TypeScript source files
 !**/*.ts
 !**/*.tsx
+
+# IMPORTANT: Allow config files
+!postcss.config.js
+!tailwind.config.ts
+!vite.config.js
+!vite.config.ts
+
