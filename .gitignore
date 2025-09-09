@@ -3,57 +3,37 @@ logs
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Node modules
+node_modules/
+
+# Build output
+dist/
+build/
+*.js
+*.js.map
+*.tsbuildinfo
 
 # Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+.vscode/
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files
 .env
-package-lock.json
-tsconfig.app.tsbuildinfo
+.env.local
 
-# Build output
-/dist
-/build
-*.js
-!/src/**/*.js
-!/src/**/*.d.ts
-
-# TypeScript
-*.d.ts
-*.d.ts.map
-*.tsbuildinfo
-!src/types/**/*.ts
-
-# Specific problem files
-resource.d.ts
-src/types/resource.d.ts
-**/resource.d.ts
-
-# All d.ts files
+# TypeScript declaration files (ignore auto-generated)
 **/*.d.ts
 
-# But keep actual TypeScript source files
-!**/*.ts
-!**/*.tsx
-
-# IMPORTANT: Allow config files
+# Config files (keep these)
 !postcss.config.js
 !tailwind.config.ts
 !vite.config.js
 !vite.config.ts
-
