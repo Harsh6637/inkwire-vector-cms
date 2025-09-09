@@ -8,7 +8,7 @@
     "build": "rimraf types && tsc -b tsconfig.app.json && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "clean:dts": "rimraf src/**/*.d.ts"
+    "clean": "powershell -Command \"Get-ChildItem -Path src -Recurse -Include *.d.ts,*.d.ts.map | Remove-Item -Force\""
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",
