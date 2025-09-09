@@ -30,6 +30,11 @@ tsconfig.app.tsbuildinfo
 /dist
 /build
 *.js
-*.d.ts
 !/src/**/*.js
 !/src/**/*.d.ts
+
+# TypeScript
+*.d.ts
+*.d.ts.map
+*.tsbuildinfo
+!src/types/**/*.ts
