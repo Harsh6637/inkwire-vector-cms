@@ -7,11 +7,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Search, Trash2, Eye } from 'lucide-react';
 import ConfirmRemoveDialog from './ConfirmRemoveDialog';
+import { Resource } from '../types/resource';
 
-type ResourceContextType = React.ContextType<typeof ResourceContext>;
-type Resource = ResourceContextType extends { resources: (infer U)[] } ? U : never;
-
-export default function ChatBox(): JSX.Element {
+export default function ChatBox() {
   const context = useContext(ResourceContext);
 
   if (!context) {
@@ -211,7 +209,6 @@ export default function ChatBox(): JSX.Element {
             </div>
           </div>
         </CardContent>
-      </Card>
       </Card>
 
       {/* Remove Confirmation Dialog */}

@@ -31,7 +31,7 @@ export default function ConfirmRemoveDialog({
   resource,
   onConfirm,
   onCancel
-}: ConfirmRemoveDialogProps): JSX.Element {
+}: ConfirmRemoveDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-white border border-gray-200 rounded-xl shadow-xl max-w-md p-0 overflow-hidden">

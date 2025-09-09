@@ -23,7 +23,7 @@ interface FileContent {
   fileType: string;
 }
 
-export default function UploadForm({ onSuccess }: UploadFormProps): JSX.Element {
+export default function UploadForm({ onSuccess }: UploadFormProps) {
   const [file, setFile] = useState<File | null>(null);
   const [tagsInput, setTagsInput] = useState<string>("");
   const [tags, setTags] = useState<string[]>([]);

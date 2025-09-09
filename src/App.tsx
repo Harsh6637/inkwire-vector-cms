@@ -5,7 +5,7 @@ import DashboardPage from './pages/DashboardPage';
 import PrivateRoute from './routes/PrivateRoute';
 import { AuthContext } from './context/AuthContext';
 
-function App(): JSX.Element {
+function App() {
   const context = useContext(AuthContext);
   const navigate = useNavigate();
 

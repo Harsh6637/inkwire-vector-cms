@@ -6,7 +6,7 @@ interface PrivateRouteProps {
 children: ReactNode;
 }
 
-export default function PrivateRoute({ children }: PrivateRouteProps): JSX.Element {
+export default function PrivateRoute({ children }: PrivateRouteProps) {
   const { user } = useContext(AuthContext);
 
   if (!user) {

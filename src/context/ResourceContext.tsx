@@ -1,55 +1,39 @@
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
-import { getResourcesFromSession, saveResourcesToSession } from '../utils/storage';
-
-// Types
-interface Resource {
-id: string;
-name: string;
-type: string;
-size: number;
-content?: string;
-uploadDate: string;
-lastModified: string;
-}
+import React, { createContext, useState, ReactNode } from 'react';
+import { Resource } from '../types/resource';
 
 interface ResourceContextType {
-resources: Resource[];
-addResource: (resource: Resource) => void;
+  resources: Resource[];
   setResources: React.Dispatch<React.SetStateAction<Resource[]>>;
-  clearResources: () => void;
+  addResource: (resource: Resource) => void;
+  removeResource: (id: string) => void;
 }
+
+export const ResourceContext = createContext<ResourceContextType | undefined>(undefined);
 
 interface ResourceProviderProps {
   children: ReactNode;
 }
 
-export const ResourceContext = createContext<ResourceContextType | undefined>(undefined);
+export function ResourceProvider({ children }: ResourceProviderProps) {
+  const [resources, setResources] = useState<Resource[]>(() => {
+    const stored = sessionStorage.getItem('inkwire_resources');
+    return stored ? JSON.parse(stored) : [];
+  });
 
-export function ResourceProvider({ children }: ResourceProviderProps): JSX.Element {
-  const [resources, setResources] = useState<Resource[]>(() => getResourcesFromSession());
-
-  // Keep session storage in sync
-  useEffect(() => {
-    saveResourcesToSession(resources);
-  }, [resources]);
-
-  const addResource = (resource: Resource): void => {
-    setResources((prev) => [...prev, resource]);
+  const addResource = (resource: Resource) => {
+    const newResources = [...resources, resource];
+    setResources(newResources);
+    sessionStorage.setItem('inkwire_resources', JSON.stringify(newResources));
   };
 
-  const clearResources = (): void => {
-    setResources([]);
-  };
-
-  const contextValue: ResourceContextType = {
-    resources,
-    addResource,
-    setResources,
-    clearResources
+  const removeResource = (id: string) => {
+    const newResources = resources.filter(r => r.id !== id);
+    setResources(newResources);
+    sessionStorage.setItem('inkwire_resources', JSON.stringify(newResources));
   };
 
   return (
-    <ResourceContext.Provider value={contextValue}>
+    <ResourceContext.Provider value={{ resources, setResources, addResource, removeResource }}>
       {children}
     </ResourceContext.Provider>
   );

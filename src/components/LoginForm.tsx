@@ -14,7 +14,7 @@ interface LoginFormState {
   error: string;
 }
 
-export default function LoginForm(): JSX.Element {
+export default function LoginForm() {
   const [formState, setFormState] = useState<LoginFormState>({
     email: '',
     password: '',

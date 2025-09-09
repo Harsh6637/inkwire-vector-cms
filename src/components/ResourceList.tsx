@@ -4,19 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import PreviewDialog from "./PreviewDialog";
 import { Eye, Trash2 } from "lucide-react";
-
-interface Resource {
-  id: string;
-  name: string;
-  type: string;
-  size: number;
-  content?: string;
-  uploadDate: string;
-  lastModified: string;
-  tags?: string[];
-  fileType?: string;
-  rawData?: string;
-}
+import { Resource } from '../types/resource';
 
 interface ResourceListProps {
   resources?: Resource[];

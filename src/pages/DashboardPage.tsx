@@ -17,16 +17,7 @@ import ResourceList from "../components/ResourceList";
 import Header from "../components/Header";
 import PreviewDialog from "../components/PreviewDialog";
 import ConfirmRemoveDialog from "../components/ConfirmRemoveDialog";
-
-interface Resource {
-  id: string;
-  name: string;
-  fileType: string;
-  content?: string;
-  rawData: string;
-  tags?: string[];
-  uploadedAt?: string;
-}
+import { Resource } from '../types/resource';
 
 interface Message {
   role: "user" | "ai";
@@ -190,8 +181,6 @@ const DashboardPage: React.FC<DashboardProps> = () => {
               <ResourceList
                 resources={resources}
                 onRemove={handleRemoveClick}
-                onPreview={handlePreview}
-                onDownload={handleDownload}
               />
             </div>
 

@@ -37,7 +37,7 @@ const HARDCODED = {
 
 const STORAGE_KEY = 'inkwire_user';
 
-export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
+export function AuthProvider({ children }: AuthProviderProps){
   const [user, setUser] = useState<User | null>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);

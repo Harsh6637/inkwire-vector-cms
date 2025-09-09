@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import inkwireLogo from '../assets/inkwire_squiggle_dark.png';
 
-export default function Header(): JSX.Element {
+export default function Header() {
   const context = useContext(AuthContext);
   const navigate = useNavigate();
 
