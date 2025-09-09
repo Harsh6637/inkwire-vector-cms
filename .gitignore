@@ -38,3 +38,15 @@ tsconfig.app.tsbuildinfo
 *.d.ts.map
 *.tsbuildinfo
 !src/types/**/*.ts
+
+# Specific problem files
+resource.d.ts
+src/types/resource.d.ts
+**/resource.d.ts
+
+# All d.ts files
+**/*.d.ts
+
+# But keep actual TypeScript source files
+!**/*.ts
+!**/*.tsx
