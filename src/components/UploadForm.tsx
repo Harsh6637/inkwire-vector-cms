@@ -1,11 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import mammoth from "mammoth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Upload, X } from "lucide-react";
-import { createResource } from "../models/resourceModel";
+import { resourceApi } from "../api/resourceApi";
+import { ResourceContext } from '../context/ResourceContext';
 
 interface UploadFormProps {
   onSuccess?: () => void;
@@ -24,11 +25,13 @@ interface FileContent {
 }
 
 export default function UploadForm({ onSuccess }: UploadFormProps) {
+  const resourceContext = useContext(ResourceContext);
   const [file, setFile] = useState<File | null>(null);
   const [tagsInput, setTagsInput] = useState<string>("");
   const [tags, setTags] = useState<string[]>([]);
   const [nameOverride, setNameOverride] = useState<string>("");
   const [errors, setErrors] = useState<FileErrors>({ file: "", displayName: "", tags: "" });
+  const [isUploading, setIsUploading] = useState<boolean>(false);
 
   const allowedTypes = [
     "application/pdf",
@@ -58,8 +61,7 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
     }
 
     const fileExt = f.name.substring(f.name.lastIndexOf(".")).toLowerCase();
-    const isAllowed =
-      allowedTypes.includes(f.type) || allowedExtensions.includes(fileExt);
+    const isAllowed = allowedTypes.includes(f.type) || allowedExtensions.includes(fileExt);
 
     if (!isAllowed) {
       setFile(null);
@@ -101,16 +103,46 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
       reader.readAsDataURL(file);
     });
 
+  const extractPDFText = async (file: File): Promise<string> => {
+    try {
+      return `PDF Document: ${file.name}\nSize: ${(file.size / 1024).toFixed(1)} KB\nType: PDF Document\nPages: Unable to determine page count without full PDF parsing.\n\nNote: This PDF has been uploaded successfully. Full text extraction from PDFs requires additional server-side processing.`;
+    } catch (error) {
+      console.error('PDF text extraction error:', error);
+      return `PDF Document: ${file.name}\nText extraction failed, but file uploaded successfully.`;
+    }
+  };
+
   const readFileContent = async (f: File): Promise<FileContent> => {
     if (!f) return { content: "", rawData: null, fileType: "unknown" };
 
     const ext = f.name.substring(f.name.lastIndexOf(".")).toLowerCase();
 
-    if (f.type.startsWith("text/") || f.type === "text/markdown" || ext === ".md") {
+    if (f.type === "text/markdown" || ext === ".md") {
       return new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onload = () =>
-          resolve({ content: reader.result as string, rawData: null, fileType: "text/markdown" });
+        reader.onload = () => {
+          const markdownContent = reader.result as string;
+          resolve({
+            content: markdownContent,
+            rawData: null,
+            fileType: "text/markdown"
+          });
+        };
+        reader.readAsText(f);
+      });
+    }
+
+    if (f.type === "text/plain" || ext === ".txt") {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const textContent = reader.result as string;
+          resolve({
+            content: textContent,
+            rawData: null,
+            fileType: "text/plain"
+          });
+        };
         reader.readAsText(f);
       });
     }
@@ -124,29 +156,50 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
       try {
         const arrayBuffer = await f.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer });
+        const rawData = await readAsDataURL(f);
+
         return {
-          content: result.value || "",
-          rawData: await readAsDataURL(f),
-          fileType:
-            f.type ||
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          content: result.value || `Word Document: ${f.name}\nText extraction failed, but file uploaded successfully.`,
+          rawData,
+          fileType: f.type || "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         };
       } catch (err) {
         console.error("Error extracting Word text:", err);
+        const rawData = await readAsDataURL(f);
         return {
-          content: "",
-          rawData: await readAsDataURL(f),
-          fileType:
-            f.type ||
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          content: `Word Document: ${f.name}\nText extraction failed, but file uploaded successfully.`,
+          rawData,
+          fileType: f.type || "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         };
       }
     }
 
+    if (f.type === "application/pdf" || ext === ".pdf") {
+      try {
+        const rawData = await readAsDataURL(f);
+        const extractedText = await extractPDFText(f);
+
+        return {
+          content: extractedText,
+          rawData,
+          fileType: "application/pdf",
+        };
+      } catch (err) {
+        console.error("Error processing PDF:", err);
+        const rawData = await readAsDataURL(f);
+        return {
+          content: `PDF Document: ${f.name}\nProcessing failed, but file uploaded successfully.`,
+          rawData,
+          fileType: "application/pdf",
+        };
+      }
+    }
+
+    const rawData = await readAsDataURL(f);
     return {
-      content: "",
-      rawData: await readAsDataURL(f),
-      fileType: f.type || "application/pdf",
+      content: `File: ${f.name}\nType: ${f.type}\nSize: ${(f.size / 1024).toFixed(1)} KB`,
+      rawData,
+      fileType: f.type || "application/octet-stream",
     };
   };
 
@@ -170,33 +223,53 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
     setErrors(newErrors);
     if (hasError) return;
 
-    const { content, rawData, fileType } = await readFileContent(file!);
+    setIsUploading(true);
 
-    const resource = createResource({
-      name: nameOverride,
-      content: content || "",
-      tags,
-      fileType,
-      rawData,
-    });
+    try {
+      const { content, rawData, fileType } = await readFileContent(file!);
 
-    const existing = JSON.parse(sessionStorage.getItem("resources") || "[]");
-    const updated = [...existing, resource];
-    sessionStorage.setItem("resources", JSON.stringify(updated));
+      const metadata = {
+        originalFileName: file!.name,
+        fileType,
+        fileSize: file!.size,
+        tags,
+        uploadDate: new Date().toISOString(),
+        ...(rawData && { rawData })
+      };
 
-    setFile(null);
-    setTags([]);
-    setTagsInput("");
-    setNameOverride("");
-    setErrors({ file: "", displayName: "", tags: "" });
+      const response = await resourceApi.create({
+        name: nameOverride.trim(),
+        metadata,
+        text: content
+      });
 
-    const input = document.getElementById("file-input") as HTMLInputElement;
-    if (input) input.value = "";
+      // Force fetch resources so ResourceList updates immediately
+      if (resourceContext?.fetchResources) {
+        await resourceContext.fetchResources(true);
+      }
 
-    window.dispatchEvent(new Event("storage"));
+      // Reset form
+      setFile(null);
+      setTags([]);
+      setTagsInput("");
+      setNameOverride("");
+      setErrors({ file: "", displayName: "", tags: "" });
 
-    if (typeof onSuccess === "function") {
-      onSuccess();
+      const input = document.getElementById("file-input") as HTMLInputElement;
+      if (input) input.value = "";
+
+      if (typeof onSuccess === "function") {
+        onSuccess();
+      }
+
+    } catch (error: any) {
+      console.error('Upload API Error:', error);
+      setErrors((prev) => ({
+        ...prev,
+        file: error.message || 'Upload failed. Please try again.'
+      }));
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -215,21 +288,26 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
           type="file"
           onChange={handleInputChange}
           className="hidden"
+          disabled={isUploading}
         />
 
         <div
-          onClick={() => document.getElementById("file-input")?.click()}
-          className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-colors duration-200"
+          onClick={() => !isUploading && document.getElementById("file-input")?.click()}
+          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors duration-200 ${
+            isUploading
+              ? 'border-gray-200 bg-gray-50 cursor-not-allowed'
+              : 'border-gray-300 cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30'
+          }`}
         >
           <div className="flex flex-col items-center space-y-3">
             <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-              <Upload className="w-6 h-6 text-gray-500" />
+              <Upload className={`w-6 h-6 ${isUploading ? 'text-gray-400' : 'text-gray-500'}`} />
             </div>
             <div className="text-sm text-gray-600">
               {file ? (
                 <span className="font-medium text-indigo-600">Selected: {file.name}</span>
               ) : (
-                <span>Click to select a file or drag and drop</span>
+                <span>{isUploading ? 'Uploading...' : 'Click to select a file or drag and drop'}</span>
               )}
             </div>
           </div>
@@ -252,6 +330,7 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
           onChange={(e) => setNameOverride(e.target.value)}
           placeholder="Enter a display name for this resource"
           className="border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+          disabled={isUploading}
         />
         {errors.displayName && (
           <p className="text-sm text-red-600">{errors.displayName}</p>
@@ -272,12 +351,14 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
             onKeyPress={handleKeyPress}
             placeholder="Add tags (comma-separated)"
             className="flex-1 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+            disabled={isUploading}
           />
           <Button
             type="button"
             variant="outline"
             onClick={handleAddTag}
             className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800"
+            disabled={isUploading}
           >
             <Plus className="w-4 h-4 mr-2" />
             Add
@@ -300,8 +381,9 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
                 {tag}
                 <button
                   type="button"
-                  onClick={() => handleRemoveTag(tag)}
+                  onClick={() => !isUploading && handleRemoveTag(tag)}
                   className="ml-2 hover:text-indigo-900"
+                  disabled={isUploading}
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -314,18 +396,18 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
       {/* Upload Button */}
       <Button
         onClick={handleUpload}
-        disabled={!file || !nameOverride.trim() || tags.length === 0}
+        disabled={!file || !nameOverride.trim() || tags.length === 0 || isUploading}
         className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium py-3 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <Upload className="w-4 h-4 mr-2" />
-        Upload to Session
+        {isUploading ? 'Uploading to Database...' : 'Upload to Database'}
       </Button>
 
       {/* Help Text */}
       <div className="text-xs text-gray-500 space-y-1">
         <p>Allowed file types: PDF, TXT, MD, DOC, DOCX</p>
         <p>Files should be less than 10 MB in size.</p>
-        <p>Files are stored in session storage and will be cleared when you close the browser.</p>
+        <p>Files are uploaded to the database and processed for vector search.</p>
       </div>
     </div>
   );

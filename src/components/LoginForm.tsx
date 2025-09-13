@@ -7,18 +7,21 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import inkwireLogo from '../assets/inkwire_squiggle_dark.png';
 import Header from "./Header";
+import { authApi } from '../api/authApi';
 
 interface LoginFormState {
   email: string;
   password: string;
   error: string;
+  isLoading: boolean;
 }
 
 export default function LoginForm() {
   const [formState, setFormState] = useState<LoginFormState>({
     email: '',
     password: '',
-    error: ''
+    error: '',
+    isLoading: false
   });
 
   const { login, checkExistingLogin } = useContext(AuthContext);
@@ -28,19 +31,44 @@ export default function LoginForm() {
     if (checkExistingLogin()) navigate('/dashboard');
   }, [checkExistingLogin, navigate]);
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
-    setFormState(prev => ({ ...prev, error: '' }));
+    setFormState(prev => ({ ...prev, error: '', isLoading: true }));
 
-    const result = login({
-      email: formState.email,
-      password: formState.password
-    });
+    try {
+      const response = await authApi.login({
+        email: formState.email,
+        password: formState.password
+      });
 
-    if (result.success) {
-      navigate('/dashboard');
-    } else {
-      setFormState(prev => ({ ...prev, error: result.message }));
+      if (response.token) {
+        // Store token for future API calls
+        localStorage.setItem('inkwire_token', response.token);
+
+        // Store user info for compatibility with existing AuthContext
+        const user = {
+          email: formState.email,
+          token: response.token,
+          loginTime: new Date().toISOString()
+        };
+        localStorage.setItem('inkwire_user', JSON.stringify(user));
+
+        const result = login({
+          email: formState.email,
+          password: formState.password
+        });
+
+        if (result.success) {
+          navigate('/dashboard');
+        }
+      }
+    } catch (error: any) {
+      console.error('Login API Error:', error);
+      setFormState(prev => ({
+        ...prev,
+        error: error.message || 'Login failed. Please check your credentials.',
+        isLoading: false
+      }));
     }
   };
 
@@ -94,6 +122,7 @@ export default function LoginForm() {
                   autoComplete="email"
                   className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 transition-colors"
                   placeholder="Enter your email"
+                  disabled={formState.isLoading}
                 />
               </div>
 
@@ -111,19 +140,20 @@ export default function LoginForm() {
                   autoComplete="current-password"
                   className="h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 transition-colors"
                   placeholder="Enter your password"
+                  disabled={formState.isLoading}
                 />
               </div>
 
               <Button
                 type="submit"
-                disabled={!formState.email || !formState.password} // disabled if either field is empty
+                disabled={!formState.email || !formState.password || formState.isLoading}
                 className={`w-full h-12 font-medium transition-all duration-200 shadow-lg hover:shadow-xl
-                  ${!formState.email || !formState.password
-                    ? 'bg-gray-400 cursor-not-allowed text-white' // disabled styling
-                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white' // enabled styling
+                  ${!formState.email || !formState.password || formState.isLoading
+                    ? 'bg-gray-400 cursor-not-allowed text-white'
+                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white'
                   }`}
               >
-                Sign In
+                {formState.isLoading ? 'Signing In...' : 'Sign In'}
               </Button>
             </form>
 

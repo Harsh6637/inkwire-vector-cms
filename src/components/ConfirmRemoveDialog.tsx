@@ -59,7 +59,7 @@ export default function ConfirmRemoveDialog({
               <>
                 Are you sure you want to remove{' '}
                 <span className="font-semibold text-gray-900">"{resource.name}"</span>
-                ? This will permanently delete the document from your session.
+                ? This will permanently delete the document.
               </>
             )}
           </p>
