@@ -1,224 +1,362 @@
-import React, { useState, useContext } from 'react';
-import { ResourceContext } from '../context/ResourceContext';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Trash2, Eye } from 'lucide-react';
+import { Send, Bot, User, Eye, Clock, Trash2, Download } from 'lucide-react';
 import ConfirmRemoveDialog from './ConfirmRemoveDialog';
-import { Resource } from '../types/resource';
+import PreviewDialog from './PreviewDialog';
+import { useResources } from '../hooks/useResources';
+import {
+    vectorSearchApi,
+    VectorSearchDocument,
+    formatSimilarityScore,
+    truncateText,
+    formatDate
+} from '../api/vectorSearchApi';
+import './ChatBox.css';
+
+interface ChatMessage {
+    id: string;
+    type: 'user' | 'ai' | 'search-results';
+    content: string;
+    timestamp: Date;
+    searchResults?: VectorSearchDocument[];
+}
 
 export default function ChatBox() {
-  const context = useContext(ResourceContext);
+    const {
+        resources,
+        refreshResources,
+        removeDialogOpen,
+        resourceToRemove,
+        openRemoveDialog,
+        closeRemoveDialog,
+        confirmRemove
+    } = useResources();
 
-  if (!context) {
-    throw new Error('ChatBox must be used within a ResourceProvider');
-  }
+    const [query, setQuery] = useState<string>('');
+    const [messages, setMessages] = useState<ChatMessage[]>([{
+        id: '1',
+        type: 'ai',
+        content: "Hi! I'm your AI assistant. I can help you search through your documents using natural language. Just ask me anything about your content!",
+        timestamp: new Date()
+    }]);
+    const [isSearching, setIsSearching] = useState<boolean>(false);
+    const [openPreview, setOpenPreview] = useState<boolean>(false);
+    const [previewData, setPreviewData] = useState<any>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { resources, setResources } = context;
-  const [query, setQuery] = useState<string>('');
-  const [results, setResults] = useState<Resource[]>([]);
-  const [removeDialogOpen, setRemoveDialogOpen] = useState<boolean>(false);
-  const [resourceToRemove, setResourceToRemove] = useState<Resource | null>(null);
+    const updateMessagesForRemovedResource = useCallback((removedResourceId: string) => {
+        setMessages(prevMessages =>
+            prevMessages.map(message => {
+                if (message.searchResults && message.type === 'search-results') {
+                    const filteredResults = message.searchResults.filter(doc => doc.resource_id !== parseInt(removedResourceId));
 
-  const runSearch = (): void => {
-    const q = query.trim().toLowerCase();
-    if (!q) {
-      setResults([]);
-      return;
-    }
+                    const updatedContent = filteredResults.length === 0
+                        ? "All documents from this search have been removed."
+                        : `I found ${filteredResults.length} relevant document${filteredResults.length === 1 ? '' : 's'} for your query. Here are the results:`;
 
-    // Search by content substring, name and tags
-    const matched = resources.filter((r: Resource) => {
-      const contentMatch = r.content && r.content.toLowerCase().includes(q);
-      const nameMatch = r.name && r.name.toLowerCase().includes(q);
-      const tagMatch = r.tags && r.tags.some((tag: string) => tag.toLowerCase().includes(q));
-      return contentMatch || nameMatch || tagMatch;
-    });
+                    return {
+                        ...message,
+                        content: updatedContent,
+                        searchResults: filteredResults
+                    };
+                }
+                return message;
+            })
+        );
+    }, []);
 
-    setResults(matched);
-  };
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages]);
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>): void => {
-    if (e.key === 'Enter') {
-      runSearch();
-    }
-  };
+    useEffect(() => {
+        setMessages(prevMessages =>
+            prevMessages.map(message => {
+                if (message.searchResults) {
+                    return {
+                        ...message,
+                        searchResults: message.searchResults.filter(doc =>
+                            resources.some(resource => parseInt(resource.id) === doc.resource_id)
+                        )
+                    };
+                }
+                return message;
+            })
+        );
+    }, [resources]);
 
-  const handleRemoveClick = (resource: Resource): void => {
-    setResourceToRemove(resource);
-    setRemoveDialogOpen(true);
-  };
+    const runVectorSearch = async (): Promise<void> => {
+        const q = query.trim();
+        if (!q) return;
 
-  const handleConfirmRemove = (): void => {
-    if (resourceToRemove) {
-      const updatedResources = resources.filter((res) => res.id !== resourceToRemove.id);
-      setResources(updatedResources);
-      sessionStorage.setItem("inkwire_resources", JSON.stringify(updatedResources));
+        const userMessage: ChatMessage = {
+            id: Date.now().toString(),
+            type: 'user',
+            content: q,
+            timestamp: new Date()
+        };
 
-      // Update search results
-      setResults(prevResults => prevResults.filter(res => res.id !== resourceToRemove.id));
-    }
-    setRemoveDialogOpen(false);
-    setResourceToRemove(null);
-  };
+        setMessages(prev => [...prev, userMessage]);
+        setQuery('');
+        setIsSearching(true);
 
-  const handleCancelRemove = (): void => {
-    setRemoveDialogOpen(false);
-    setResourceToRemove(null);
-  };
+        try {
+            await refreshResources();
+            const data = await vectorSearchApi.searchDocuments(q);
 
-  return (
-    <>
-      <Card className="bg-white shadow-lg border-slate-200 rounded-xl overflow-hidden">
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-slate-100 p-6">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
-              <Search className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-slate-900">
-                Search Documents
-              </h2>
-              <p className="text-sm text-slate-600">
-                Find documents by name, content, or tags
-              </p>
-            </div>
-          </div>
-        </div>
+            const aiMessage: ChatMessage = {
+                id: (Date.now() + 1).toString(),
+                type: 'search-results',
+                content: data.documents.length > 0
+                    ? `I found ${data.documents.length} relevant document${data.documents.length === 1 ? '' : 's'} for your query. Here are the results:`
+                    : "I couldn't find any documents matching your query. Try rephrasing your search or using different keywords.",
+                timestamp: new Date(),
+                searchResults: data.documents
+            };
 
-        <CardContent className="p-6 space-y-6">
-          {/* Search Input */}
-          <div className="space-y-3">
-            <Label htmlFor="search-query" className="text-sm font-medium text-slate-700">
-              Search Query
-            </Label>
-            <div className="flex space-x-3">
-              <Input
-                id="search-query"
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder='e.g. "invoice", "meeting notes", or search by tags'
-                className="flex-1 h-11 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 transition-colors enhanced-input"
-              />
-              <Button
-                onClick={runSearch}
-                className="h-11 px-6 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-              >
-                <Search className="w-4 h-4 mr-2" />
-                Search
-              </Button>
-            </div>
-          </div>
+            setMessages(prev => [...prev, aiMessage]);
+        } catch (error) {
+            const errorMessage: ChatMessage = {
+                id: (Date.now() + 1).toString(),
+                type: 'ai',
+                content: `Sorry, I encountered an error while searching: ${error instanceof Error ? error.message : 'Search failed'}. Please try again.`,
+                timestamp: new Date()
+            };
+            setMessages(prev => [...prev, errorMessage]);
+        } finally {
+            setIsSearching(false);
+        }
+    };
 
-          {/* Results Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold text-slate-900 section-header">
-                Search Results
-              </h3>
-              <Badge variant="secondary" className="bg-indigo-100 text-indigo-800 hover:bg-indigo-200 font-medium">
-                {results.length} {results.length === 1 ? 'result' : 'results'}
-              </Badge>
-            </div>
+    const handlePreview = (doc: VectorSearchDocument): void => {
+            const resource = resources.find(r => parseInt(r.id) === doc.resource_id);
+            if (resource) {
+                // Get the actual text content - try multiple possible locations
+                const textContent = resource.metadata?.text ||
+                                   resource.metadata?.content ||
+                                   resource.text ||
+                                   resource.content ||
+                                   '';
 
-            {/* Results List */}
-            <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
-              {results.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Search className="w-8 h-8 text-slate-400" />
-                  </div>
-                  <p className="text-slate-500 text-sm">
-                    {query ? 'No documents match your search criteria.' : 'Enter a search term to find documents.'}
-                  </p>
-                  {query && (
-                    <p className="text-slate-400 text-xs mt-2">
-                      Try searching by document name, content, or tags
-                    </p>
-                  )}
-                </div>
-              ) : (
-                results.map((r) => (
-                  <Card key={r.id} className="bg-slate-50 border-slate-200 hover:bg-white hover:border-indigo-200 transition-all duration-200 resource-card">
-                    <CardContent className="p-4">
-                      {/* Result Header */}
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold text-slate-900 truncate">{r.name}</h4>
-                        <span className="text-xs text-slate-500 whitespace-nowrap ml-4">
-                          {new Date(r.uploadDate).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}
-                        </span>
-                      </div>
+                const previewResource = {
+                    id: resource.id,
+                    name: resource.name,
+                    content: textContent,
+                    rawData: resource.metadata?.rawData || null,
+                    fileType: resource.metadata?.fileType || 'text/plain',
+                    type: resource.metadata?.fileType || 'text/plain',
+                    metadata: resource.metadata
+                };
+                setPreviewData(previewResource);
+                setOpenPreview(true);
+            }
+        };
 
-                      {/* Content Preview */}
-                      {r.content && (
-                        <p className="text-sm text-slate-600 leading-relaxed mb-3 line-clamp-3">
-                          {r.content.length > 300
-                            ? `${r.content.slice(0, 300)}...`
-                            : r.content
-                          }
-                        </p>
-                      )}
+    const handleRemoveClick = (doc: VectorSearchDocument): void => {
+        const resource = resources.find(r => parseInt(r.id) === doc.resource_id);
+        if (resource) {
+            openRemoveDialog(resource);
+        }
+    };
 
-                      {/* Tags */}
-                      {r.tags && r.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          {r.tags.map((tag) => (
-                            <Badge
-                              key={tag}
-                              variant="outline"
-                              className="text-xs bg-white border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                            >
-                              {tag}
-                            </Badge>
-                          ))}
+    const handleDownload = (doc: VectorSearchDocument): void => {
+        const resource = resources.find(r => parseInt(r.id) === doc.resource_id);
+        if (resource && resource.metadata?.rawData) {
+            const link = document.createElement("a");
+            link.href = resource.metadata.rawData;
+            link.download = resource.name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    };
+
+    const getFileType = (res: any): string => {
+        const fileType = res.metadata?.fileType || res.fileType || res.type || 'Unknown';
+        const cleanFileTypes: { [key: string]: string } = {
+            'application/pdf': 'PDF',
+            'text/plain': 'Text',
+            'text/markdown': 'Markdown',
+            'application/msword': 'Word',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word',
+            'application/vnd.ms-excel': 'Excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'Excel'
+        };
+        return cleanFileTypes[fileType] || fileType;
+    };
+
+    const formatTime = (date: Date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    return (
+        <>
+            <Card className="bg-white shadow-lg border-slate-200 rounded-xl overflow-hidden h-full flex flex-col">
+                <div style={{ background: 'linear-gradient(to right, #eef2ff, #faf5ff)' }} className="border-b border-slate-100 p-4">
+                    <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 gradient-header-icon rounded-lg flex items-center justify-center">
+                            <Bot className="w-5 h-5 text-white" />
                         </div>
-                      )}
+                        <div>
+                            <h2 className="text-lg font-semibold text-slate-900">AI Document Assistant</h2>
+                            <p className="text-xs text-slate-600">Ask me anything about your documents</p>
+                        </div>
+                    </div>
+                </div>
 
-                      {/* Action Buttons */}
-                      <div className="flex gap-2 pt-2 border-t border-slate-100">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 h-8 text-xs border-slate-200 hover:bg-slate-50 hover:border-indigo-300 transition-colors"
-                        >
-                          <Eye className="w-3 h-3 mr-1" />
-                          Preview
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRemoveClick(r)}
-                          className="h-8 px-3 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
-                        >
-                          <Trash2 className="w-3 h-3 mr-1" />
-                          Remove
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4 bg-slate-50">
+                    {messages.map((message) => (
+                        <div key={message.id} className={`message-container ${message.type === 'user' ? 'user' : 'ai'}`}>
+                            <div className="message-content">
+                                <div className={`message-avatar ${message.type === 'user' ? 'gradient-avatar-user' : 'gradient-avatar-ai'}`}>
+                                    {message.type === 'user' ? <User className="w-4 h-4 text-white" /> : <Bot className="w-4 h-4 text-white" />}
+                                </div>
+                                <div className={`message-bubble ${message.type === 'user' ? 'chat-message-user text-white' : 'chat-message-ai text-slate-800'}`}>
+                                    <p className="message-text">{message.content}</p>
 
-      {/* Remove Confirmation Dialog */}
-      <ConfirmRemoveDialog
-        open={removeDialogOpen}
-        onOpenChange={setRemoveDialogOpen}
-        resource={resourceToRemove}
-        onConfirm={handleConfirmRemove}
-        onCancel={handleCancelRemove}
-      />
-    </>
-  );
+                                    {message.searchResults && message.searchResults.length > 0 && (
+                                        <div className="search-results">
+                                            {message.searchResults.map((doc) => {
+                                                console.log("Debug: Score for document:", doc.max_score);
+                                                return (
+                                                    <Card key={doc.resource_id} className="bg-white border-slate-200 resource-card">
+                                                        <CardContent className="p-3">
+                                                            <div className="document-header">
+                                                                <div className="document-title-section">
+                                                                    <h4 className="document-title">{doc.resource_title}</h4>
+                                                                    <Badge variant="outline" className="text-xs badge-success">
+                                                                        {formatSimilarityScore(doc.max_score)}
+                                                                    </Badge>
+                                                                </div>
+                                                                <span className="text-xs text-slate-500 whitespace-nowrap ml-2">
+                                                                    <Clock className="w-3 h-3 inline mr-1" />
+                                                                    {formatDate(doc.resource_created_at)}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="document-meta">
+                                                                <Badge variant="outline" className="text-xs badge-info">
+                                                                    {doc.resource_type.toUpperCase()}
+                                                                </Badge>
+                                                                <span className="text-xs text-slate-500">
+                                                                    {doc.chunk_count} matching {doc.chunk_count === 1 ? 'section' : 'sections'}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="space-y-2 mb-3">
+                                                                {doc.chunks.slice(0, 1).map((chunk) => (
+                                                                    <div key={chunk.id} className="chunk-preview">
+                                                                        <p className="chunk-text">{truncateText(chunk.text, 150)}</p>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+
+                                                            <div className="flex gap-2">
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() => handlePreview(doc)}
+                                                                    className="flex-1 h-7 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 transition-colors"
+                                                                >
+                                                                    <Eye className="w-3 h-3 mr-1" />Preview
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() => handleDownload(doc)}
+                                                                    className="flex-1 h-7 text-xs border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800 transition-colors"
+                                                                >
+                                                                    <Download className="w-3 h-3 mr-1" />Download
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() => handleRemoveClick(doc)}
+                                                                    className="flex-1 h-7 text-xs border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 transition-colors"
+                                                                >
+                                                                    <Trash2 className="w-3 h-3 mr-1" />Remove
+                                                                </Button>
+                                                            </div>
+                                                        </CardContent>
+                                                    </Card>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                    <div className="message-time">{formatTime(message.timestamp)}</div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+
+                    {isSearching && (
+                        <div className="message-container ai">
+                            <div className="message-content">
+                                <div className="message-avatar gradient-avatar-ai">
+                                    <Bot className="w-4 h-4 text-white" />
+                                </div>
+                                <div className="message-bubble chat-message-ai">
+                                    <div className="typing-indicator">
+                                        <div className="typing-dot animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                                        <div className="typing-dot animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                                        <div className="typing-dot animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div ref={messagesEndRef} />
+                </div>
+
+                <div className="chat-input-container">
+                    <div className="chat-input-wrapper">
+                        <Input
+                            type="text"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), runVectorSearch())}
+                            placeholder="Ask me anything about your documents..."
+                            className="chat-input enhanced-input"
+                            disabled={isSearching}
+                        />
+                        <Button
+                            onClick={runVectorSearch}
+                            disabled={isSearching || !query.trim()}
+                            className="send-button gradient-button"
+                        >
+                            {isSearching ? (
+                                <div className="loading-spinner animate-spin" />
+                            ) : (
+                                <Send className="w-4 h-4" />
+                            )}
+                        </Button>
+                    </div>
+                    <p className="chat-hint">
+                        Ask questions like "show me documents about machine learning" or "find financial reports"
+                    </p>
+                </div>
+            </Card>
+
+            <ConfirmRemoveDialog
+                open={removeDialogOpen}
+                onOpenChange={closeRemoveDialog}
+                resource={resourceToRemove}
+                onConfirm={() => confirmRemove(updateMessagesForRemovedResource)}
+                onCancel={closeRemoveDialog}
+            />
+
+            {previewData && (
+                <PreviewDialog
+                    open={openPreview}
+                    onClose={() => setOpenPreview(false)}
+                    name={previewData.name}
+                    fileType={getFileType(previewData)}
+                    content={previewData.content}
+                    rawData={previewData.rawData}
+                />
+            )}
+        </>
+    );
 }

@@ -17,6 +17,11 @@ export default defineConfig({
   server: {
     port: 3000,
     strictPort: true,
+    hmr: true,
+    watch: {
+      usePolling: true,
+      interval: 100
+    }
   },
   css: {
     postcss: './postcss.config.js',

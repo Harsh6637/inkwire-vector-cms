@@ -1,13 +1,12 @@
 import { Resource } from '../types/resource';
 
 interface CreateResourceParams {
-    name: string;
+name: string;
 content: string;
 tags: string[];
 fileType: string;
 rawData: string | null;
 }
-
 
 export function createResource({ name, content, tags, fileType, rawData }: CreateResourceParams): Resource {
   return {
@@ -17,6 +16,12 @@ export function createResource({ name, content, tags, fileType, rawData }: Creat
     tags,
     fileType,
     rawData,
-    createdAt: new Date().toISOString()
+    metadata: {
+      tags,
+      fileType,
+      rawData,
+      uploadDate: new Date().toISOString()
+    },
+    created_at: new Date().toISOString()
   };
 }

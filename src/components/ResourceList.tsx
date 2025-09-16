@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,7 +6,7 @@ import PreviewDialog from "./PreviewDialog";
 import ConfirmRemoveDialog from "./ConfirmRemoveDialog";
 import { Eye, Trash2 } from "lucide-react";
 import { Resource } from '../types/resource';
-import { ResourceContext } from '../context/ResourceContext';
+import { useResources } from '../hooks/useResources';
 
 interface ResourceListProps {
   resources?: Resource[];
@@ -14,55 +14,38 @@ interface ResourceListProps {
 }
 
 const ResourceList: React.FC<ResourceListProps> = ({ resources: propResources, onRemove: propOnRemove }) => {
-  const resourceContext = useContext(ResourceContext);
+  // Use the global state from useResources hook
+  const {
+    resources: hookResources,
+    isLoading,
+    removeDialogOpen,
+    resourceToRemove,
+    openRemoveDialog,
+    closeRemoveDialog,
+    confirmRemove
+  } = useResources();
+
   const [openPreview, setOpenPreview] = useState<boolean>(false);
   const [previewData, setPreviewData] = useState<Resource | null>(null);
-  const [showRemoveDialog, setShowRemoveDialog] = useState<boolean>(false);
-  const [resourceToRemove, setResourceToRemove] = useState<Resource | null>(null);
 
-  // Use context resources and loading state
-  const resources = resourceContext?.resources ?? propResources ?? [];
-  const isLoading = resourceContext?.isLoading ?? false;
-
-  // Auto-fetch resources on component mount if using context
-  useEffect(() => {
-    if (resourceContext && resourceContext.fetchResources && !resourceContext.isLoading && !resourceContext.hasFetched) {
-      resourceContext.fetchResources();
-    }
-  }, [resourceContext]);
+  // Use hook resources as primary source, fall back to props if provided
+  const resources = hookResources.length > 0 ? hookResources : (propResources ?? []);
 
   const handlePreview = (res: Resource): void => {
-    setPreviewData(res);
+    // Create a preview-compatible object
+    const previewResource = {
+      ...res,
+      content: res.metadata?.text || res.metadata?.content || res.content || '',
+      rawData: res.metadata?.rawData || res.rawData || null,
+      fileType: res.metadata?.fileType || res.fileType || res.type || 'text/plain'
+    };
+
+    setPreviewData(previewResource);
     setOpenPreview(true);
   };
 
   const handleRemoveClick = (resource: Resource): void => {
-    setResourceToRemove(resource);
-    setShowRemoveDialog(true);
-  };
-
-  const handleConfirmRemove = async (): Promise<void> => {
-    if (!resourceToRemove) return;
-
-    try {
-      if (resourceContext?.removeResource) {
-        // Use context method (API call to database)
-        await resourceContext.removeResource(resourceToRemove.id);
-      } else if (propOnRemove) {
-        // Fall back to prop method for backward compatibility
-        propOnRemove(resourceToRemove);
-      }
-    } catch (error) {
-      console.error('Failed to remove resource:', error);
-    }
-
-    setShowRemoveDialog(false);
-    setResourceToRemove(null);
-  };
-
-  const handleCancelRemove = (): void => {
-    setShowRemoveDialog(false);
-    setResourceToRemove(null);
+    openRemoveDialog(resource);
   };
 
   const getFileSize = (res: Resource): number | null => {
@@ -213,13 +196,13 @@ const ResourceList: React.FC<ResourceListProps> = ({ resources: propResources, o
         resources.map(renderResourceCard)
       )}
 
-      {/* Confirm Remove Dialog */}
+      {/* Confirm Remove Dialog - Using global state */}
       <ConfirmRemoveDialog
-        open={showRemoveDialog}
-        onOpenChange={setShowRemoveDialog}
+        open={removeDialogOpen}
+        onOpenChange={closeRemoveDialog}
         resource={resourceToRemove}
-        onConfirm={handleConfirmRemove}
-        onCancel={handleCancelRemove}
+        onConfirm={confirmRemove}
+        onCancel={closeRemoveDialog}
       />
 
       {/* Preview Dialog */}

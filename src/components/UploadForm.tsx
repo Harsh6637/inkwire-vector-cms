@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState } from "react";
 import mammoth from "mammoth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Upload, X } from "lucide-react";
 import { resourceApi } from "../api/resourceApi";
-import { ResourceContext } from '../context/ResourceContext';
+import { useResources } from '../hooks/useResources';
 
 interface UploadFormProps {
   onSuccess?: () => void;
@@ -25,7 +25,7 @@ interface FileContent {
 }
 
 export default function UploadForm({ onSuccess }: UploadFormProps) {
-  const resourceContext = useContext(ResourceContext);
+  const { refreshResources } = useResources();
   const [file, setFile] = useState<File | null>(null);
   const [tagsInput, setTagsInput] = useState<string>("");
   const [tags, setTags] = useState<string[]>([]);
@@ -243,10 +243,8 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
         text: content
       });
 
-      // Force fetch resources so ResourceList updates immediately
-      if (resourceContext?.fetchResources) {
-        await resourceContext.fetchResources(true);
-      }
+      // Force refresh all components to show the new resource
+      await refreshResources();
 
       // Reset form
       setFile(null);

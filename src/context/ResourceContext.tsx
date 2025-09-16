@@ -11,6 +11,7 @@ interface ResourceContextType {
   error: string | null;
   fetchResources: (force?: boolean) => Promise<void>;
   hasFetched: boolean;
+  refreshResources: () => void;
 }
 
 export const ResourceContext = createContext<ResourceContextType | undefined>(undefined);
@@ -44,11 +45,13 @@ export function ResourceProvider({ children }: ResourceProviderProps) {
     }
   };
 
-  const refreshResources = () => fetchResources(true);
+  const refreshResources = () => {
+    setHasFetched(false);
+    fetchResources(true);
+  };
 
   // Load resources when component mounts
   useEffect(() => {
-    // Only fetch if user is authenticated
     const token = localStorage.getItem('inkwire_token');
     if (token) {
       fetchResources();
@@ -57,6 +60,8 @@ export function ResourceProvider({ children }: ResourceProviderProps) {
 
   const addResource = (resource: Resource) => {
     setResources(prev => [...prev, resource]);
+    // Refresh to get the latest data from server
+    refreshResources();
   };
 
   const removeResource = async (id: string) => {
@@ -65,12 +70,12 @@ export function ResourceProvider({ children }: ResourceProviderProps) {
       // Call backend API to delete resource
       await resourceApi.delete(id);
 
-      // Remove from local state on success
-      setResources(prev => prev.filter(r => r.id !== id));
+      // Refresh resources from server to ensure consistency
+      await fetchResources(true);
     } catch (err: any) {
       console.error('Failed to remove resource:', err);
       setError(err.message || 'Failed to remove resource');
-      throw err; // Re-throw so components can handle the error
+      throw err;
     }
   };
 
@@ -83,7 +88,8 @@ export function ResourceProvider({ children }: ResourceProviderProps) {
       fetchResources,
       isLoading,
       error,
-      hasFetched
+      hasFetched,
+      refreshResources
     }}>
       {children}
     </ResourceContext.Provider>

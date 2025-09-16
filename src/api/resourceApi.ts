@@ -1,4 +1,6 @@
+import { fetchWithAuth } from './authUtils';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { Resource } from '../types/resource';
 
 export interface CreateResourceRequest {
 name: string;
@@ -9,13 +11,6 @@ text: string;
 export interface CreateResourceResponse {
 message: string;
 resourceId: string;
-}
-
-export interface Resource {
-id: string;
-name: string;
-metadata: any;
-created_at: string;
 }
 
 export const resourceApi = {
@@ -31,7 +26,7 @@ export const resourceApi = {
     formData.append('metadata', JSON.stringify(resourceData.metadata));
     formData.append('text', resourceData.text);
 
-    const response = await fetch(`${API_BASE_URL}/resources`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/resources`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -55,7 +50,7 @@ export const resourceApi = {
       throw new Error('No authentication token found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/resources`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/resources`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -78,7 +73,7 @@ export const resourceApi = {
       throw new Error('No authentication token found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/resources/${id}`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/resources/${id}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
