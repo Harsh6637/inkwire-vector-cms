@@ -4,16 +4,18 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import PreviewDialog from "./PreviewDialog";
 import ConfirmRemoveDialog from "./ConfirmRemoveDialog";
-import { Eye, Trash2 } from "lucide-react";
+import { Eye, Download, Trash2 } from "lucide-react";
 import { Resource } from '../types/resource';
 import { useResources } from '../hooks/useResources';
+import { downloadResource } from '../utils/downloadUtils';
 
 interface ResourceListProps {
   resources?: Resource[];
   onRemove?: (resource: Resource) => void;
+  onDownload?: (resource: Resource) => void;
 }
 
-const ResourceList: React.FC<ResourceListProps> = ({ resources: propResources, onRemove: propOnRemove }) => {
+const ResourceList: React.FC<ResourceListProps> = ({ resources: propResources, onRemove: propOnRemove, onDownload: propOnDownload }) => {
   // Use the global state from useResources hook
   const {
     resources: hookResources,
@@ -28,8 +30,8 @@ const ResourceList: React.FC<ResourceListProps> = ({ resources: propResources, o
   const [openPreview, setOpenPreview] = useState<boolean>(false);
   const [previewData, setPreviewData] = useState<Resource | null>(null);
 
-  // Use hook resources as primary source, fall back to props if provided
-  const resources = hookResources.length > 0 ? hookResources : (propResources ?? []);
+  // Use hook resources (which have rawData) instead of props
+  const resources = hookResources;
 
   const handlePreview = (res: Resource): void => {
     // Create a preview-compatible object
@@ -42,6 +44,15 @@ const ResourceList: React.FC<ResourceListProps> = ({ resources: propResources, o
 
     setPreviewData(previewResource);
     setOpenPreview(true);
+  };
+
+  const handleDownload = (res: Resource): void => {
+    const result = downloadResource(res);
+
+    if (!result.success && result.error) {
+      // You could replace this with a toast notification system
+      alert(result.error);
+    }
   };
 
   const handleRemoveClick = (resource: Resource): void => {
@@ -155,6 +166,15 @@ const ResourceList: React.FC<ResourceListProps> = ({ resources: propResources, o
             >
               <Eye className="w-4 h-4 mr-2" />
               Preview
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDownload(res)}
+              className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800 transition-colors"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Download
             </Button>
             <Button
               variant="outline"

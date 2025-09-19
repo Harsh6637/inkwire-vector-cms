@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Send, Bot, User, Eye, Clock, Trash2, Download } from 'lucide-react';
+import { Send, Bot, User, Eye, Clock } from 'lucide-react';
 import ConfirmRemoveDialog from './ConfirmRemoveDialog';
 import PreviewDialog from './PreviewDialog';
 import { useResources } from '../hooks/useResources';
@@ -132,45 +132,26 @@ export default function ChatBox() {
     };
 
     const handlePreview = (doc: VectorSearchDocument): void => {
-            const resource = resources.find(r => parseInt(r.id) === doc.resource_id);
-            if (resource) {
-                // Get the actual text content - try multiple possible locations
-                const textContent = resource.metadata?.text ||
-                                   resource.metadata?.content ||
-                                   resource.text ||
-                                   resource.content ||
-                                   '';
-
-                const previewResource = {
-                    id: resource.id,
-                    name: resource.name,
-                    content: textContent,
-                    rawData: resource.metadata?.rawData || null,
-                    fileType: resource.metadata?.fileType || 'text/plain',
-                    type: resource.metadata?.fileType || 'text/plain',
-                    metadata: resource.metadata
-                };
-                setPreviewData(previewResource);
-                setOpenPreview(true);
-            }
-        };
-
-    const handleRemoveClick = (doc: VectorSearchDocument): void => {
         const resource = resources.find(r => parseInt(r.id) === doc.resource_id);
         if (resource) {
-            openRemoveDialog(resource);
-        }
-    };
+            // Get the actual text content - try multiple possible locations
+            const textContent = resource.metadata?.text ||
+                               resource.metadata?.content ||
+                               resource.text ||
+                               resource.content ||
+                               '';
 
-    const handleDownload = (doc: VectorSearchDocument): void => {
-        const resource = resources.find(r => parseInt(r.id) === doc.resource_id);
-        if (resource && resource.metadata?.rawData) {
-            const link = document.createElement("a");
-            link.href = resource.metadata.rawData;
-            link.download = resource.name;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            const previewResource = {
+                id: resource.id,
+                name: resource.name,
+                content: textContent,
+                rawData: resource.metadata?.rawData || null,
+                fileType: resource.metadata?.fileType || 'text/plain',
+                type: resource.metadata?.fileType || 'text/plain',
+                metadata: resource.metadata
+            };
+            setPreviewData(previewResource);
+            setOpenPreview(true);
         }
     };
 
@@ -260,22 +241,6 @@ export default function ChatBox() {
                                                                     className="flex-1 h-7 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 transition-colors"
                                                                 >
                                                                     <Eye className="w-3 h-3 mr-1" />Preview
-                                                                </Button>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    onClick={() => handleDownload(doc)}
-                                                                    className="flex-1 h-7 text-xs border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800 transition-colors"
-                                                                >
-                                                                    <Download className="w-3 h-3 mr-1" />Download
-                                                                </Button>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    onClick={() => handleRemoveClick(doc)}
-                                                                    className="flex-1 h-7 text-xs border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 transition-colors"
-                                                                >
-                                                                    <Trash2 className="w-3 h-3 mr-1" />Remove
                                                                 </Button>
                                                             </div>
                                                         </CardContent>
