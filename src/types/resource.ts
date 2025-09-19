@@ -3,6 +3,9 @@ export interface Resource {
 name: string;
 metadata: any;
 created_at: string;
+// New required fields for hybrid approach
+publishers: string[];
+description: string;
 // Optional properties for compatibility
 content?: string;
 text?: string;

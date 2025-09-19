@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Send, Bot, User, Eye, Clock } from 'lucide-react';
 import ConfirmRemoveDialog from './ConfirmRemoveDialog';
 import PreviewDialog from './PreviewDialog';
+import DescriptionHover, { getResourceDescription } from '../utils/DescriptionHover';
 import { useResources } from '../hooks/useResources';
 import {
     vectorSearchApi,
@@ -200,12 +201,28 @@ export default function ChatBox() {
                                         <div className="search-results">
                                             {message.searchResults.map((doc) => {
                                                 console.log("Debug: Score for document:", doc.max_score);
+
+                                                // Find the resource to get description and publishers
+                                                const resource = resources.find(r => parseInt(r.id) === doc.resource_id);
+
                                                 return (
                                                     <Card key={doc.resource_id} className="bg-white border-slate-200 resource-card">
                                                         <CardContent className="p-3">
                                                             <div className="document-header">
                                                                 <div className="document-title-section">
-                                                                    <h4 className="document-title">{doc.resource_title}</h4>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <h4 className="document-title">{doc.resource_title}</h4>
+                                                                        {/* Description hover */}
+                                                                        {resource && (
+                                                                            <DescriptionHover
+                                                                                description={getResourceDescription(resource)}
+                                                                                side="top"
+                                                                                align="start"
+                                                                                iconSize="sm"
+                                                                                triggerClassName="text-gray-300 hover:text-indigo-500"
+                                                                            />
+                                                                        )}
+                                                                    </div>
                                                                     <Badge variant="outline" className="text-xs badge-success">
                                                                         {formatSimilarityScore(doc.max_score)}
                                                                     </Badge>
@@ -224,6 +241,48 @@ export default function ChatBox() {
                                                                     {doc.chunk_count} matching {doc.chunk_count === 1 ? 'section' : 'sections'}
                                                                 </span>
                                                             </div>
+
+                                                            {/* Publishers */}
+                                                            {resource && resource.publishers && resource.publishers.length > 0 && (
+                                                                <div className="flex items-center flex-wrap gap-1 mb-2">
+                                                                    <span className="text-xs font-medium text-slate-700">Publishers:</span>
+                                                                    {resource.publishers.slice(0, 2).map((publisher) => (
+                                                                        <Badge
+                                                                            key={publisher}
+                                                                            variant="secondary"
+                                                                            className="bg-green-100 text-green-800 text-xs px-2 py-0.5"
+                                                                        >
+                                                                            {publisher}
+                                                                        </Badge>
+                                                                    ))}
+                                                                    {resource.publishers.length > 2 && (
+                                                                        <span className="text-xs text-slate-500">
+                                                                            +{resource.publishers.length - 2} more
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Tags */}
+                                                            {resource && resource.metadata?.tags && resource.metadata.tags.length > 0 && (
+                                                                <div className="flex items-center flex-wrap gap-1 mb-2">
+                                                                    <span className="text-xs font-medium text-slate-700">Tags:</span>
+                                                                    {resource.metadata.tags.slice(0, 3).map((tag) => (
+                                                                        <Badge
+                                                                            key={tag}
+                                                                            variant="secondary"
+                                                                            className="bg-indigo-100 text-indigo-800 text-xs px-2 py-0.5"
+                                                                        >
+                                                                            {tag}
+                                                                        </Badge>
+                                                                    ))}
+                                                                    {resource.metadata.tags.length > 3 && (
+                                                                        <span className="text-xs text-slate-500">
+                                                                            +{resource.metadata.tags.length - 3} more
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            )}
 
                                                             <div className="space-y-2 mb-3">
                                                                 {doc.chunks.slice(0, 1).map((chunk) => (

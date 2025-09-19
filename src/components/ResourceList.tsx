@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import PreviewDialog from "./PreviewDialog";
 import ConfirmRemoveDialog from "./ConfirmRemoveDialog";
+import DescriptionHover, { getResourceDescription } from "../utils/DescriptionHover";
 import { Eye, Download, Trash2 } from "lucide-react";
 import { Resource } from '../types/resource';
 import { useResources } from '../hooks/useResources';
@@ -119,6 +120,18 @@ const ResourceList: React.FC<ResourceListProps> = ({ resources: propResources, o
     return res.tags || [];
   };
 
+  const getPublishers = (res: Resource): string[] => {
+    // Publishers from dedicated column (hybrid approach)
+    if (res.publishers && Array.isArray(res.publishers)) {
+      return res.publishers;
+    }
+    // Fallback to metadata if needed
+    if (res.metadata?.publishers && Array.isArray(res.metadata.publishers)) {
+      return res.metadata.publishers;
+    }
+    return [];
+  };
+
   const renderResourceCard = (res: Resource): React.ReactNode => (
     <Card
       key={res.id}
@@ -128,9 +141,19 @@ const ResourceList: React.FC<ResourceListProps> = ({ resources: propResources, o
         <div className="flex justify-between items-start gap-4">
           {/* Left side: File details */}
           <div className="flex flex-col gap-2 flex-1 min-w-0">
-            <h3 className="font-semibold text-gray-900 break-words">
-              {res.name}
-            </h3>
+            {/* Resource name with info icon for description hover */}
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-gray-900 break-words">
+                {res.name}
+              </h3>
+
+              {/* Description hover using utility */}
+              <DescriptionHover
+                description={getResourceDescription(res)}
+                side="top"
+                align="start"
+              />
+            </div>
 
             {/* File info */}
             <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -138,6 +161,22 @@ const ResourceList: React.FC<ResourceListProps> = ({ resources: propResources, o
               <span>•</span>
               <span>{formatFileSize(getFileSize(res))}</span>
             </div>
+
+            {/* Publishers */}
+            {getPublishers(res).length > 0 && (
+              <div className="flex items-center flex-wrap gap-2">
+                <span className="text-sm font-medium text-gray-700">Publishers:</span>
+                {getPublishers(res).map((publisher) => (
+                  <Badge
+                    key={publisher}
+                    variant="secondary"
+                    className="bg-green-100 text-green-800 hover:bg-green-200 text-xs"
+                  >
+                    {publisher}
+                  </Badge>
+                ))}
+              </div>
+            )}
 
             {/* Tags */}
             {getTags(res).length > 0 && (
@@ -147,7 +186,7 @@ const ResourceList: React.FC<ResourceListProps> = ({ resources: propResources, o
                   <Badge
                     key={tag}
                     variant="secondary"
-                    className="bg-gray-100 text-gray-800 hover:bg-gray-200 text-xs"
+                    className="bg-indigo-100 text-indigo-800 hover:bg-indigo-200 text-xs"
                   >
                     {tag}
                   </Badge>

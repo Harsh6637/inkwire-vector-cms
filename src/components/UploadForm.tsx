@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Plus, Upload, X } from "lucide-react";
 import { resourceApi } from "../api/resourceApi";
 import { useResources } from '../hooks/useResources';
@@ -16,6 +17,8 @@ interface FileErrors {
   file: string;
   displayName: string;
   tags: string;
+  publishers: string;
+  description: string;
 }
 
 interface FileContent {
@@ -26,11 +29,29 @@ interface FileContent {
 
 export default function UploadForm({ onSuccess }: UploadFormProps) {
   const { refreshResources } = useResources();
+
+  // File and basic info
   const [file, setFile] = useState<File | null>(null);
+  const [nameOverride, setNameOverride] = useState<string>("");
+
+  // Tags (stored in metadata)
   const [tagsInput, setTagsInput] = useState<string>("");
   const [tags, setTags] = useState<string[]>([]);
-  const [nameOverride, setNameOverride] = useState<string>("");
-  const [errors, setErrors] = useState<FileErrors>({ file: "", displayName: "", tags: "" });
+
+  // Publishers (stored in dedicated column)
+  const [publishersInput, setPublishersInput] = useState<string>("");
+  const [publishers, setPublishers] = useState<string[]>([]);
+
+  // Description (stored in dedicated column)
+  const [description, setDescription] = useState<string>("");
+
+  const [errors, setErrors] = useState<FileErrors>({
+    file: "",
+    displayName: "",
+    tags: "",
+    publishers: "",
+    description: ""
+  });
   const [isUploading, setIsUploading] = useState<boolean>(false);
 
   const allowedTypes = [
@@ -85,6 +106,7 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
     if (f) handleFileChange(f);
   };
 
+  // Tag management (stays in metadata)
   const handleAddTag = (): void => {
     const t = tagsInput.trim();
     if (!t) return;
@@ -95,6 +117,18 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
   };
 
   const handleRemoveTag = (t: string): void => setTags((prev) => prev.filter((x) => x !== t));
+
+  // Publisher management (dedicated column)
+  const handleAddPublisher = (): void => {
+    const p = publishersInput.trim();
+    if (!p) return;
+    const newPublishers = p.split(",").map((x) => x.trim()).filter(Boolean);
+    setPublishers((prev) => Array.from(new Set([...prev, ...newPublishers])));
+    setPublishersInput("");
+    setErrors((prev) => ({ ...prev, publishers: "" }));
+  };
+
+  const handleRemovePublisher = (p: string): void => setPublishers((prev) => prev.filter((x) => x !== p));
 
   const readAsDataURL = (file: File): Promise<string> =>
     new Promise((resolve) => {
@@ -205,7 +239,13 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
 
   const handleUpload = async (): Promise<void> => {
     let hasError = false;
-    const newErrors: FileErrors = { file: "", displayName: "", tags: "" };
+    const newErrors: FileErrors = {
+      file: "",
+      displayName: "",
+      tags: "",
+      publishers: "",
+      description: ""
+    };
 
     if (!file) {
       newErrors.file = "Please select a valid file to upload.";
@@ -219,6 +259,14 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
       newErrors.tags = "At least one tag is required.";
       hasError = true;
     }
+    if (publishers.length === 0) {
+      newErrors.publishers = "At least one publisher is required.";
+      hasError = true;
+    }
+    if (!description.trim()) {
+      newErrors.description = "Description is required.";
+      hasError = true;
+    }
 
     setErrors(newErrors);
     if (hasError) return;
@@ -228,19 +276,23 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
     try {
       const { content, rawData, fileType } = await readFileContent(file!);
 
+      // Metadata contains tags and file info (flexible data)
       const metadata = {
         originalFileName: file!.name,
         fileType,
         fileSize: file!.size,
-        tags,
+        tags, // Tags remain in metadata for flexibility
         uploadDate: new Date().toISOString(),
         ...(rawData && { rawData })
       };
 
+      // Publishers and description are sent as dedicated fields
       const response = await resourceApi.create({
         name: nameOverride.trim(),
         metadata,
-        text: content
+        text: content,
+        publishers, // Dedicated field for efficient querying
+        description: description.trim() // Dedicated field for full-text search
       });
 
       // Force refresh all components to show the new resource
@@ -250,8 +302,17 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
       setFile(null);
       setTags([]);
       setTagsInput("");
+      setPublishers([]);
+      setPublishersInput("");
+      setDescription("");
       setNameOverride("");
-      setErrors({ file: "", displayName: "", tags: "" });
+      setErrors({
+        file: "",
+        displayName: "",
+        tags: "",
+        publishers: "",
+        description: ""
+      });
 
       const input = document.getElementById("file-input") as HTMLInputElement;
       if (input) input.value = "";
@@ -271,9 +332,15 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>): void => {
+  const handleTagKeyPress = (e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (e.key === 'Enter') {
       handleAddTag();
+    }
+  };
+
+  const handlePublisherKeyPress = (e: React.KeyboardEvent<HTMLInputElement>): void => {
+    if (e.key === 'Enter') {
+      handleAddPublisher();
     }
   };
 
@@ -335,7 +402,81 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
         )}
       </div>
 
-      {/* Tags Input */}
+      {/* Publishers - Dedicated Column for Efficient Querying */}
+      <div className="space-y-3">
+        <Label htmlFor="publishers-input" className="text-sm font-medium text-gray-700">
+          Publishers *
+        </Label>
+        <div className="flex gap-2">
+          <Input
+            id="publishers-input"
+            type="text"
+            value={publishersInput}
+            onChange={(e) => setPublishersInput(e.target.value)}
+            onKeyPress={handlePublisherKeyPress}
+            placeholder="Add publishers (comma-separated)"
+            className="flex-1 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+            disabled={isUploading}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleAddPublisher}
+            className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800"
+            disabled={isUploading}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+                Add
+          </Button>
+        </div>
+
+        {errors.publishers && publishers.length === 0 && (
+          <p className="text-sm text-red-600">{errors.publishers}</p>
+        )}
+
+        {/* Publishers Display */}
+        {publishers.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {publishers.map((publisher) => (
+              <Badge
+                key={publisher}
+                variant="secondary"
+                className="bg-green-100 text-green-800 hover:bg-green-200 pr-1"
+              >
+                {publisher}
+                <button
+                  type="button"
+                  onClick={() => !isUploading && handleRemovePublisher(publisher)}
+                  className="ml-2 hover:text-green-900"
+                  disabled={isUploading}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Description - Dedicated Column for Full-Text Search */}
+            <div className="space-y-2">
+              <Label htmlFor="description" className="text-sm font-medium text-gray-700">
+                Description *
+              </Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Provide a detailed description of this resource"
+                className="border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 min-h-[100px]"
+                disabled={isUploading}
+              />
+              {errors.description && (
+                <p className="text-sm text-red-600">{errors.description}</p>
+              )}
+            </div>
+
+      {/* Tags - Stored in Metadata for Flexibility */}
       <div className="space-y-3">
         <Label htmlFor="tags-input" className="text-sm font-medium text-gray-700">
           Tags *
@@ -346,7 +487,7 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
             type="text"
             value={tagsInput}
             onChange={(e) => setTagsInput(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyPress={handleTagKeyPress}
             placeholder="Add tags (comma-separated)"
             className="flex-1 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
             disabled={isUploading}
@@ -394,7 +535,14 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
       {/* Upload Button */}
       <Button
         onClick={handleUpload}
-        disabled={!file || !nameOverride.trim() || tags.length === 0 || isUploading}
+        disabled={
+          !file ||
+          !nameOverride.trim() ||
+          !description.trim() ||
+          tags.length === 0 ||
+          publishers.length === 0 ||
+          isUploading
+        }
         className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium py-3 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <Upload className="w-4 h-4 mr-2" />
@@ -403,9 +551,8 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
 
       {/* Help Text */}
       <div className="text-xs text-gray-500 space-y-1">
-        <p>Allowed file types: PDF, TXT, MD, DOC, DOCX</p>
-        <p>Files should be less than 10 MB in size.</p>
-        <p>Files are uploaded to the database and processed for vector search.</p>
+        <p>• Allowed file types: PDF, TXT, MD, DOC, DOCX (max 10 MB)</p>
+        <p>• All fields marked with * are required</p>
       </div>
     </div>
   );

@@ -6,9 +6,19 @@ content: string;
 tags: string[];
 fileType: string;
 rawData: string | null;
+publishers?: string[];
+description?: string;
 }
 
-export function createResource({ name, content, tags, fileType, rawData }: CreateResourceParams): Resource {
+export function createResource({
+  name,
+  content,
+  tags,
+  fileType,
+  rawData,
+  publishers = [],
+  description = ''
+}: CreateResourceParams): Resource {
   return {
     id: Date.now().toString(),
     name,
@@ -16,6 +26,8 @@ export function createResource({ name, content, tags, fileType, rawData }: Creat
     tags,
     fileType,
     rawData,
+    publishers,
+    description,
     metadata: {
       tags,
       fileType,
