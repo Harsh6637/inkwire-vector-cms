@@ -61,7 +61,7 @@ export default function DescriptionHover({
           {children || defaultTrigger}
         </HoverCardTrigger>
         <HoverCardContent
-          className={`w-80 bg-white border border-gray-200 shadow-lg rounded-lg p-4 ${contentClassName}`}
+          className={`max-w-[90vw] sm:max-w-sm bg-white border border-gray-200 shadow-lg rounded-lg p-4 overflow-auto ${contentClassName}`}
           side={side}
           align={align}
         >
@@ -86,11 +86,9 @@ export default function DescriptionHover({
 
 // Helper function to extract description from resource objects
 export function getResourceDescription(resource: any): string {
-  // Description from dedicated column (hybrid approach)
   if (resource.description && typeof resource.description === 'string') {
     return resource.description;
   }
-  // Fallback to metadata if needed
   if (resource.metadata?.description && typeof resource.metadata.description === 'string') {
     return resource.metadata.description;
   }
