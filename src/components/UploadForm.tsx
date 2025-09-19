@@ -345,9 +345,9 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto px-1">
       {/* File Upload Area */}
-      <div className="space-y-3">
+      <div className="space-y-2">
         <input
           id="file-input"
           type="file"
@@ -358,34 +358,34 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
 
         <div
           onClick={() => !isUploading && document.getElementById("file-input")?.click()}
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors duration-200 ${
+          className={`border-2 border-dashed rounded-lg p-4 sm:p-6 lg:p-8 text-center transition-colors duration-200 ${
             isUploading
               ? 'border-gray-200 bg-gray-50 cursor-not-allowed'
               : 'border-gray-300 cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30'
           }`}
         >
-          <div className="flex flex-col items-center space-y-3">
-            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-              <Upload className={`w-6 h-6 ${isUploading ? 'text-gray-400' : 'text-gray-500'}`} />
+          <div className="flex flex-col items-center space-y-2 sm:space-y-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gray-100 rounded-full flex items-center justify-center">
+              <Upload className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 ${isUploading ? 'text-gray-400' : 'text-gray-500'}`} />
             </div>
-            <div className="text-sm text-gray-600">
+            <div className="text-xs sm:text-sm text-gray-600">
               {file ? (
-                <span className="font-medium text-indigo-600">Selected: {file.name}</span>
+                <span className="font-medium text-indigo-600 break-all">{file.name}</span>
               ) : (
-                <span>{isUploading ? 'Uploading...' : 'Click to select a file or drag and drop'}</span>
+                <span>{isUploading ? 'Uploading...' : 'Click to select a file'}</span>
               )}
             </div>
           </div>
         </div>
 
         {errors.file && (
-          <p className="text-sm text-red-600">{errors.file}</p>
+          <p className="text-xs sm:text-sm text-red-600">{errors.file}</p>
         )}
       </div>
 
       {/* Display Name */}
       <div className="space-y-2">
-        <Label htmlFor="display-name" className="text-sm font-medium text-gray-700">
+        <Label htmlFor="display-name" className="text-xs sm:text-sm font-medium text-gray-700">
           Display Name *
         </Label>
         <Input
@@ -393,61 +393,60 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
           type="text"
           value={nameOverride}
           onChange={(e) => setNameOverride(e.target.value)}
-          placeholder="Enter a display name for this resource"
-          className="border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+          placeholder="Enter display name"
+          className="text-xs sm:text-sm border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
           disabled={isUploading}
         />
         {errors.displayName && (
-          <p className="text-sm text-red-600">{errors.displayName}</p>
+          <p className="text-xs text-red-600">{errors.displayName}</p>
         )}
       </div>
 
-      {/* Publishers - Dedicated Column for Efficient Querying */}
-      <div className="space-y-3">
-        <Label htmlFor="publishers-input" className="text-sm font-medium text-gray-700">
+      {/* Publishers */}
+      <div className="space-y-2">
+        <Label htmlFor="publishers-input" className="text-xs sm:text-sm font-medium text-gray-700">
           Publishers *
         </Label>
-        <div className="flex gap-2">
+        <div className="flex gap-1 sm:gap-2">
           <Input
             id="publishers-input"
             type="text"
             value={publishersInput}
             onChange={(e) => setPublishersInput(e.target.value)}
             onKeyPress={handlePublisherKeyPress}
-            placeholder="Add publishers (comma-separated)"
-            className="flex-1 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+            placeholder="Add publishers"
+            className="flex-1 text-xs sm:text-sm border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
             disabled={isUploading}
           />
           <Button
             type="button"
             variant="outline"
             onClick={handleAddPublisher}
-            className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800"
+            className="text-xs px-2 sm:px-3 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
             disabled={isUploading}
           >
-            <Plus className="w-4 h-4 mr-2" />
-                Add
+            <Plus className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
+            <span className="hidden sm:inline">Add</span>
           </Button>
         </div>
 
         {errors.publishers && publishers.length === 0 && (
-          <p className="text-sm text-red-600">{errors.publishers}</p>
+          <p className="text-xs text-red-600">{errors.publishers}</p>
         )}
 
-        {/* Publishers Display */}
         {publishers.length > 0 && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1">
             {publishers.map((publisher) => (
               <Badge
                 key={publisher}
                 variant="secondary"
-                className="bg-green-100 text-green-800 hover:bg-green-200 pr-1"
+                className="bg-green-100 text-green-800 hover:bg-green-200 pr-1 text-xs max-w-[120px] sm:max-w-none"
               >
-                {publisher}
+                <span className="truncate">{publisher}</span>
                 <button
                   type="button"
                   onClick={() => !isUploading && handleRemovePublisher(publisher)}
-                  className="ml-2 hover:text-green-900"
+                  className="ml-1 hover:text-green-900"
                   disabled={isUploading}
                 >
                   <X className="w-3 h-3" />
@@ -458,70 +457,69 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
         )}
       </div>
 
-      {/* Description - Dedicated Column for Full-Text Search */}
-            <div className="space-y-2">
-              <Label htmlFor="description" className="text-sm font-medium text-gray-700">
-                Description *
-              </Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Provide a detailed description of this resource"
-                className="border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 min-h-[100px]"
-                disabled={isUploading}
-              />
-              {errors.description && (
-                <p className="text-sm text-red-600">{errors.description}</p>
-              )}
-            </div>
+      {/* Description */}
+      <div className="space-y-2">
+        <Label htmlFor="description" className="text-xs sm:text-sm font-medium text-gray-700">
+          Description *
+        </Label>
+        <Textarea
+          id="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Provide description"
+          className="text-xs sm:text-sm border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 min-h-[60px] sm:min-h-[80px] lg:min-h-[100px] resize-none"
+          disabled={isUploading}
+        />
+        {errors.description && (
+          <p className="text-xs text-red-600">{errors.description}</p>
+        )}
+      </div>
 
-      {/* Tags - Stored in Metadata for Flexibility */}
-      <div className="space-y-3">
-        <Label htmlFor="tags-input" className="text-sm font-medium text-gray-700">
+      {/* Tags */}
+      <div className="space-y-2">
+        <Label htmlFor="tags-input" className="text-xs sm:text-sm font-medium text-gray-700">
           Tags *
         </Label>
-        <div className="flex gap-2">
+        <div className="flex gap-1 sm:gap-2">
           <Input
             id="tags-input"
             type="text"
             value={tagsInput}
             onChange={(e) => setTagsInput(e.target.value)}
             onKeyPress={handleTagKeyPress}
-            placeholder="Add tags (comma-separated)"
-            className="flex-1 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+            placeholder="Add tags"
+            className="flex-1 text-xs sm:text-sm border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
             disabled={isUploading}
           />
           <Button
             type="button"
             variant="outline"
             onClick={handleAddTag}
-            className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800"
+            className="text-xs px-2 sm:px-3 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
             disabled={isUploading}
           >
-            <Plus className="w-4 h-4 mr-2" />
-            Add
+            <Plus className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
+            <span className="hidden sm:inline">Add</span>
           </Button>
         </div>
 
         {errors.tags && tags.length === 0 && (
-          <p className="text-sm text-red-600">{errors.tags}</p>
+          <p className="text-xs text-red-600">{errors.tags}</p>
         )}
 
-        {/* Tags Display */}
         {tags.length > 0 && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1">
             {tags.map((tag) => (
               <Badge
                 key={tag}
                 variant="secondary"
-                className="bg-indigo-100 text-indigo-800 hover:bg-indigo-200 pr-1"
+                className="bg-indigo-100 text-indigo-800 hover:bg-indigo-200 pr-1 text-xs max-w-[120px] sm:max-w-none"
               >
-                {tag}
+                <span className="truncate">{tag}</span>
                 <button
                   type="button"
                   onClick={() => !isUploading && handleRemoveTag(tag)}
-                  className="ml-2 hover:text-indigo-900"
+                  className="ml-1 hover:text-indigo-900"
                   disabled={isUploading}
                 >
                   <X className="w-3 h-3" />
@@ -543,15 +541,15 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
           publishers.length === 0 ||
           isUploading
         }
-        className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium py-3 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium py-2 sm:py-3 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
       >
-        <Upload className="w-4 h-4 mr-2" />
-        {isUploading ? 'Uploading to Database...' : 'Upload to Database'}
+        <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
+        {isUploading ? 'Uploading...' : 'Upload to Database'}
       </Button>
 
       {/* Help Text */}
       <div className="text-xs text-gray-500 space-y-1">
-        <p>• Allowed file types: PDF, TXT, MD, DOC, DOCX (max 10 MB)</p>
+        <p>• PDF, TXT, MD, DOC, DOCX (max 10 MB)</p>
         <p>• All fields marked with * are required</p>
       </div>
     </div>
