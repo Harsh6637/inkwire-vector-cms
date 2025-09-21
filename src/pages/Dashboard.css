@@ -62,19 +62,33 @@
   background: linear-gradient(135deg, #94a3b8, #64748b);
 }
 
-/* Enhanced chat message styles */
+/* Enhanced chat message styles - FIXED: Removed transform animations that cause scroll issues */
 .chat-message-user {
   background: linear-gradient(135deg, #3B82F6, #06B6D4);
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
-  animation: slideInRight 0.3s ease-out;
+  /* Removed slideInRight animation that was causing auto-scroll */
+  animation: fadeIn 0.3s ease-out;
 }
 
 .chat-message-ai {
   background: linear-gradient(135deg, #f8fafc, #f1f5f9);
   border: 1px solid rgba(226, 232, 240, 0.8);
-  animation: slideInLeft 0.3s ease-out;
+  /* Removed slideInLeft animation that was causing auto-scroll */
+  animation: fadeIn 0.3s ease-out;
 }
 
+/* Safe fade-in animation that doesn't affect scroll position */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Removed problematic slide animations */
+/* These were causing layout shifts and auto-scrolling:
 @keyframes slideInRight {
   from {
     opacity: 0;
@@ -96,6 +110,7 @@
     transform: translateX(0);
   }
 }
+*/
 
 /* Enhanced card styling */
 .resource-card {

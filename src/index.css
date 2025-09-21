@@ -13,6 +13,41 @@
     line-height: 1.6;
     min-height: 100vh;
   }
+
+  /* CRITICAL: DISABLE ALL AUTO-SCROLLING GLOBALLY */
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  * {
+    scroll-behavior: auto !important;
+  }
+
+  body {
+    overflow-anchor: none !important;
+  }
+
+  /* Prevent scroll restoration */
+  html, body {
+    scroll-restoration: manual !important;
+    overflow-y: hidden !important;
+  }
+
+  /* Disable smooth scrolling everywhere */
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+  }
+
+  /* Prevent focus from scrolling elements into view */
+  :focus {
+    scroll-margin: 0 !important;
+    scroll-padding: 0 !important;
+  }
+
+  /* Disable scroll snap */
+  * {
+    scroll-snap-type: none !important;
+  }
 }
 
 .btn-primary {
@@ -143,4 +178,9 @@
 
 .gradient-header {
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+}
+
+/* Target the shadcn DialogOverlay, for more transparent change the value*/
+[data-state="open"].fixed.inset-0.bg-black\/80 {
+  background-color: rgb(0 0 0 / 1) !important; /* 100% black */
 }

@@ -17,6 +17,9 @@ import ConfirmRemoveDialog from "../components/ConfirmRemoveDialog";
 import ChatBox from "../components/ChatBox";
 import { Resource } from '../types/resource';
 import { ResourceContext } from '../context/ResourceContext';
+import { useProcessingStatus } from '../hooks/useProcessingStatus';
+import { resourceApi } from '../api/resourceApi';
+import ProcessingProgressBar from "../components/ProcessingProgressBar";
 
 interface DashboardProps {}
 
@@ -27,6 +30,8 @@ const DashboardPage: React.FC<DashboardProps> = () => {
   const [removeDialogOpen, setRemoveDialogOpen] = useState<boolean>(false);
   const [resourceToRemove, setResourceToRemove] = useState<Resource | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState<boolean>(false);
+  const [processingResourceId, setProcessingResourceId] = useState<string | null>(null);
+  const { status, chunkCount, ready, error } = useProcessingStatus(processingResourceId);
 
   const loadResources = (): void => {
     const stored = JSON.parse(sessionStorage.getItem("resources") || "[]") as Resource[];
@@ -76,9 +81,15 @@ const DashboardPage: React.FC<DashboardProps> = () => {
     document.body.removeChild(link);
   };
 
-  const handleUploadSuccess = (): void => {
+  const handleUploadSuccess = async (resourceId: string): Promise<void> => {
     setUploadDialogOpen(false);
     loadResources();
+    try {
+      await resourceApi.processChunks(resourceId);  // trigger background processing
+      setProcessingResourceId(resourceId);          // show processing dialog
+    } catch (err: any) {
+      console.error('Chunk processing failed:', err);
+    }
   };
 
   // Resource context value for ChatBox
@@ -97,10 +108,39 @@ const resourceContextValue = {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
       <Header />
+        {/* Chunk Process Bar */}
+        {/* Chunk Process Bar - Option 1 keeps the div tag mounted
+        <div className="w-full max-w-7xl mx-auto px-6 overflow-hidden transition-all duration-300 ease-in-out py-2 h-auto">
+          <ProcessingProgressBar
+            status={status}
+            chunkCount={chunkCount}
+            error={error || null}
+          />
+        </div>
+        */}
+        {/* Chunk Process Bar - unmounts the div tag once the status is changed to completed */}
+      <div
+        className={`w-full max-w-7xl mx-auto px-6 overflow-hidden transition-all duration-300 ease-in-out ${
+          processingResourceId && status !== 'pending' && status !== 'completed'
+            ? 'py-2 h-auto'
+            : 'py-0 h-0'
+        }`}
+      >
+        <ProcessingProgressBar
+          status={status}
+          chunkCount={chunkCount}
+          error={error || null}
+        />
+      </div>
 
       <div className="flex justify-center p-5 w-full">
+
         <div className="flex flex-row gap-6 p-6 w-4/5 h-[calc(100vh-5rem)] max-w-7xl">
+
+
+
           {/* Left Panel - Resource Management */}
+
           <div className="flex-[0_0_40%] flex flex-col gap-5 overflow-y-auto bg-white p-6 rounded-2xl shadow-lg border border-slate-100 min-w-80">
             <Button
               onClick={() => setUploadDialogOpen(true)}

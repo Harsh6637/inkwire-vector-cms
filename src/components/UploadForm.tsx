@@ -10,7 +10,7 @@ import { resourceApi } from "../api/resourceApi";
 import { useResources } from '../hooks/useResources';
 
 interface UploadFormProps {
-  onSuccess?: () => void;
+  onSuccess?: (resourceId: string) => void; // pass resourceId to parent
 }
 
 interface FileErrors {
@@ -295,6 +295,11 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
         description: description.trim() // Dedicated field for full-text search
       });
 
+      if (response?.resourceId) {
+        resourceApi.processChunks(response.resourceId)
+          .catch(err => console.error('Chunk processing failed:', err));
+      }
+
       // Force refresh all components to show the new resource
       await refreshResources();
 
@@ -318,7 +323,7 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
       if (input) input.value = "";
 
       if (typeof onSuccess === "function") {
-        onSuccess();
+        onSuccess(response.resourceId); // <-- Pass resourceId to DashboardPage
       }
 
     } catch (error: any) {

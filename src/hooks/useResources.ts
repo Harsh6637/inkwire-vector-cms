@@ -1,15 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { resourceApi } from '../api/resourceApi';
+import { processingApi } from '../api/processingApi';
 import { Resource } from '../types/resource';
 
 interface UseResourcesReturn {
-resources: Resource[];
-isLoading: boolean;
-error: string | null;
-fetchResources: () => Promise<void>;
+  resources: Resource[];
+  isLoading: boolean;
+  error: string | null;
+  fetchResources: () => Promise<void>;
   removeResource: (id: string) => Promise<void>;
   addResource: (resource: Resource) => void;
   refreshResources: () => Promise<void>;
+  processResource: (id: string) => Promise<void>;
+  processAllPending: () => Promise<void>;
+  checkProcessingStatus: (id: string) => Promise<any>;
   // Dialog states
   removeDialogOpen: boolean;
   resourceToRemove: Resource | null;
@@ -111,6 +115,41 @@ export const useResources = (): UseResourcesReturn => {
     await fetchResources();
   }, [fetchResources]);
 
+  // Process a single resource
+  const processResource = useCallback(async (id: string) => {
+    try {
+      await processingApi.processResource(id);
+      // Refresh to update status
+      await fetchResources();
+    } catch (err: any) {
+      console.error('Failed to process resource:', err);
+      throw err;
+    }
+  }, [fetchResources]);
+
+  // Process all pending resources
+  const processAllPending = useCallback(async () => {
+    try {
+      const result = await processingApi.processAllPending();
+      console.log('Processing started for:', result);
+      // Refresh to update statuses
+      await fetchResources();
+    } catch (err: any) {
+      console.error('Failed to process pending resources:', err);
+      throw err;
+    }
+  }, [fetchResources]);
+
+  // Check processing status
+  const checkProcessingStatus = useCallback(async (id: string) => {
+    try {
+      return await processingApi.getStatus(id);
+    } catch (err: any) {
+      console.error('Failed to check status:', err);
+      return null;
+    }
+  }, []);
+
   // Dialog management functions
   const openRemoveDialog = useCallback((resource: Resource) => {
     updateAllDialogs({ open: true, resource });
@@ -148,6 +187,26 @@ export const useResources = (): UseResourcesReturn => {
     }
   }, [fetchResources]);
 
+  // Auto-check processing status periodically
+  useEffect(() => {
+    const checkPendingResources = async () => {
+      const pendingResources = resources.filter(r =>
+        r.processingStatus === 'pending' || r.processingStatus === 'processing'
+      );
+
+      if (pendingResources.length > 0) {
+        for (const resource of pendingResources) {
+          await checkProcessingStatus(resource.id);
+        }
+        // Refresh resources to update statuses
+        await fetchResources();
+      }
+    };
+
+    const interval = setInterval(checkPendingResources, 5000); // Check every 5 seconds
+    return () => clearInterval(interval);
+  }, [resources, checkProcessingStatus, fetchResources]);
+
   return {
     resources,
     isLoading,
@@ -156,6 +215,9 @@ export const useResources = (): UseResourcesReturn => {
     removeResource,
     addResource,
     refreshResources,
+    processResource,
+    processAllPending,
+    checkProcessingStatus,
     removeDialogOpen: dialogState.open,
     resourceToRemove: dialogState.resource,
     openRemoveDialog,

@@ -161,4 +161,26 @@ create: async (resourceData: CreateResourceRequest): Promise<CreateResourceRespo
 
     return data;
   },
+  // Trigger background chunk processing for a resource
+  processChunks: async (resourceId: string): Promise<{ message: string }> => {
+    const token = localStorage.getItem('inkwire_token');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/processing/process/${resourceId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to process resource chunks');
+    }
+
+    return data;
+  },
 };

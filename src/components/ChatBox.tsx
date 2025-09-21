@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -69,9 +69,16 @@ export default function ChatBox() {
         );
     }, []);
 
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages]);
+    // auto-scroll that only triggers for new messages
+    useLayoutEffect(() => {
+      const container = messagesEndRef.current?.closest(
+        ".custom-scrollbar"
+      ) as HTMLElement | null;
+
+      if (!container) return;
+
+      container.scrollTop = container.scrollHeight;
+    }, [messages.length]);
 
     useEffect(() => {
         setMessages(prevMessages =>
@@ -91,7 +98,17 @@ export default function ChatBox() {
 
     const runVectorSearch = async (): Promise<void> => {
         const q = query.trim();
-        if (!q) return;
+
+        if (!q || q.length === 0) {
+            const warningMessage: ChatMessage = {
+                id: Date.now().toString(),
+                type: 'ai',
+                content: 'Please enter a search query. I need something to search for!',
+                timestamp: new Date()
+            };
+            setMessages(prev => [...prev, warningMessage]);
+            return;
+        }
 
         const userMessage: ChatMessage = {
             id: Date.now().toString(),
@@ -115,7 +132,31 @@ export default function ChatBox() {
                     ? `I found ${data.documents.length} relevant document${data.documents.length === 1 ? '' : 's'} for your query. Here are the results:`
                     : "I couldn't find any documents matching your query. Try rephrasing your search or using different keywords.",
                 timestamp: new Date(),
-                searchResults: data.documents
+                // FIXED: Filter out low-quality matches and very low similarity scores
+                searchResults: data.documents.filter(doc => {
+                    // Remove results with very low similarity (likely false positives)
+                    const maxScore = doc.max_score || 0;
+                    if (maxScore < 0.15) return false; // Filter out matches below 15%
+
+                    // Filter out results with empty or meaningless content
+                    if (!doc.chunks || doc.chunks.length === 0) return false;
+
+                    // Check if any chunk has meaningful content
+                    const hasRealContent = doc.chunks.some(chunk => {
+                        const preview = chunk.preview || '';
+                        const cleanPreview = preview.replace(/\*\*/g, '').trim();
+
+                        // Skip metadata-only content
+                        if (cleanPreview.startsWith('Title:') || cleanPreview.startsWith('Tags:') || cleanPreview.startsWith('Description:')) {
+                            return false;
+                        }
+
+                        // Must have actual words, not just whitespace
+                        return cleanPreview.length > 3 && /[a-zA-Z]{2,}/.test(cleanPreview);
+                    });
+
+                    return hasRealContent;
+                })
             };
 
             setMessages(prev => [...prev, aiMessage]);
@@ -199,7 +240,16 @@ export default function ChatBox() {
 
                                     {message.searchResults && message.searchResults.length > 0 && (
                                         <div className="search-results">
-                                            {message.searchResults.map((doc) => {
+                                            {/* FIXED: Keep separate documents but deduplicate by resource_id only */}
+                                            {message.searchResults
+                                                .reduce((uniqueDocs, doc) => {
+                                                    // Only add if we haven't seen this exact resource_id before
+                                                    if (!uniqueDocs.find(d => d.resource_id === doc.resource_id)) {
+                                                        uniqueDocs.push(doc);
+                                                    }
+                                                    return uniqueDocs;
+                                                }, [] as VectorSearchDocument[])
+                                                .map((doc) => {
                                                 console.log("Debug: Score for document:", doc.max_score);
 
                                                 // Find the resource to get description and publishers
@@ -284,13 +334,102 @@ export default function ChatBox() {
                                                                 </div>
                                                             )}
 
-                                                            <div className="space-y-2 mb-3">
-                                                                {doc.chunks.slice(0, 1).map((chunk) => (
-                                                                    <div key={chunk.id} className="chunk-preview">
-                                                                        <p className="chunk-text">{truncateText(chunk.text, 150)}</p>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
+                                                            {/* FIXED: Matching Content Display - Clean tile without match type badges */}
+                                                            {doc.chunks && doc.chunks.length > 0 && (
+                                                              <div className="space-y-2 mb-3">
+                                                                <div className="text-xs font-medium text-slate-600 mb-1">
+                                                                  Found {doc.chunk_count} matching {doc.chunk_count === 1 ? 'section' : 'sections'}:
+                                                                </div>
+
+                                                                {/* FIXED: Single clean tile without match type badges */}
+                                                                <div className="chunk-preview bg-slate-50 p-2 rounded border border-slate-200">
+                                                                  <div className="chunk-text text-xs text-slate-700 leading-relaxed">
+                                                                    {doc.chunks
+                                                                      .filter((chunk, index, self) =>
+                                                                        // Remove duplicate chunks with same preview
+                                                                        index === self.findIndex((c) => c.preview === chunk.preview)
+                                                                      )
+                                                                      .slice(0, 3) // Show up to 3 unique chunks
+                                                                      .map((chunk) => {
+                                                                        // FIXED: Truncate text to show only 3 words before and after match
+                                                                        let preview = chunk.preview || '';
+
+                                                                        if (!preview || preview.trim() === '') {
+                                                                          return null;
+                                                                        }
+
+                                                                        // Skip if preview looks like metadata only
+                                                                        if (preview.startsWith('Title:') || preview.startsWith('Description:') || preview.startsWith('Tags:')) {
+                                                                          // Extract actual content after metadata
+                                                                          const contentMatch = preview.match(/(?:Keywords:|Tags:)[^\n]*\n+(.*)/s);
+                                                                          if (contentMatch && contentMatch[1] && contentMatch[1].trim()) {
+                                                                            preview = contentMatch[1].trim();
+                                                                          } else {
+                                                                            return null; // Skip if no real content
+                                                                          }
+                                                                        }
+
+                                                                        // FIXED: Create concise snippet - 3 words before, match, 3 words after
+                                                                        const createConciseSnippet = (text: string) => {
+                                                                          const parts = text.split(/\*\*/);
+                                                                          let result = [];
+
+                                                                          for (let i = 0; i < parts.length; i++) {
+                                                                            if (i % 2 === 0) {
+                                                                              // Non-highlighted text - trim to 3 words
+                                                                              const words = parts[i].trim().split(/\s+/).filter(Boolean);
+                                                                              if (i === 0 && words.length > 3) {
+                                                                                // First part - show last 3 words
+                                                                                result.push('...' + words.slice(-3).join(' ') + ' ');
+                                                                              } else if (i === parts.length - 1 && words.length > 3) {
+                                                                                // Last part - show first 3 words
+                                                                                result.push(' ' + words.slice(0, 3).join(' ') + '...');
+                                                                              } else {
+                                                                                // Middle parts or short parts - keep as is
+                                                                                result.push(words.join(' '));
+                                                                              }
+                                                                            } else {
+                                                                              // Highlighted text - keep as is
+                                                                              result.push(`**${parts[i]}**`);
+                                                                            }
+                                                                          }
+
+                                                                          return result.join('');
+                                                                        };
+
+                                                                        const concisePreview = createConciseSnippet(preview);
+                                                                        const parts = concisePreview.split(/\*\*/);
+
+                                                                        return (
+                                                                          <div key={chunk.id} className="mb-1 last:mb-0">
+                                                                            <div className="text-xs leading-tight">
+                                                                              {parts.map((part, index) => {
+                                                                                // Odd indices are the highlighted parts
+                                                                                if (index % 2 === 1) {
+                                                                                  return (
+                                                                                    <mark key={index} className="bg-yellow-200 font-semibold text-slate-900 px-0.5 rounded">
+                                                                                      {part}
+                                                                                    </mark>
+                                                                                  );
+                                                                                }
+                                                                                return <span key={index}>{part}</span>;
+                                                                              })}
+                                                                            </div>
+                                                                          </div>
+                                                                        );
+                                                                      })
+                                                                      .filter(Boolean) // Remove null entries
+                                                                    }
+
+                                                                    {doc.chunk_count > 3 && (
+                                                                      <div className="text-xs text-slate-500 italic mt-2 pt-2 border-t border-slate-200">
+                                                                        +{doc.chunk_count - 3} more matching sections available
+                                                                      </div>
+                                                                    )}
+                                                                  </div>
+                                                                </div>
+                                                              </div>
+                                                            )}
 
                                                             <div className="flex gap-2">
                                                                 <Button

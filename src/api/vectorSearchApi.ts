@@ -5,6 +5,7 @@ export interface VectorSearchChunk {
 id: number;
 text: string;
 score: number;
+preview?: string;
 }
 
 export interface VectorSearchDocument {
