@@ -70,7 +70,7 @@ export const useResources = (): UseResourcesReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading]);
+  }, []);
 
   const removeResource = useCallback(async (id: string) => {
     try {
@@ -189,8 +189,8 @@ export const useResources = (): UseResourcesReturn => {
 
   // Auto-check processing status periodically
   useEffect(() => {
-    const checkPendingResources = async () => {
-      const pendingResources = resources.filter(r =>
+    const interval = setInterval(async () => {
+      const pendingResources = globalResources.filter(r =>
         r.processingStatus === 'pending' || r.processingStatus === 'processing'
       );
 
@@ -198,14 +198,12 @@ export const useResources = (): UseResourcesReturn => {
         for (const resource of pendingResources) {
           await checkProcessingStatus(resource.id);
         }
-        // Refresh resources to update statuses
-        await fetchResources();
+        await fetchResources(); // refresh statuses
       }
-    };
+    }, 5000);
 
-    const interval = setInterval(checkPendingResources, 5000); // Check every 5 seconds
     return () => clearInterval(interval);
-  }, [resources, checkProcessingStatus, fetchResources]);
+  }, [checkProcessingStatus, fetchResources]);
 
   return {
     resources,
