@@ -1,0 +1,30 @@
+.hover-card-content {
+  width: 330px;
+  max-width: calc(100vw - 2rem);
+  max-height: 275px;
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border-radius: 0.5rem;
+  overflow: auto;
+  word-break: break-word;
+}
+
+@media (max-width: 1280px) {
+  .hover-card-content {
+    width: 300px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .hover-card-content {
+    width: 280px;
+  }
+}
+
+@media (max-width: 640px) {
+  .hover-card-content {
+    width: 250px;
+    max-width: calc(100vw - 1rem);
+  }
+}

@@ -261,19 +261,25 @@ export default function ChatBox() {
                                                         <CardContent className="p-3">
                                                             <div className="document-header">
                                                                 <div className="document-title-section">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <h4 className="document-title">{doc.resource_title}</h4>
-                                                                        {/* Description hover */}
-                                                                        {resource && (
-                                                                            <DescriptionHover
-                                                                                description={getResourceDescription(resource)}
-                                                                                side="top"
-                                                                                align="start"
-                                                                                iconSize="sm"
-                                                                                triggerClassName="text-gray-300 hover:text-indigo-500"
-                                                                            />
-                                                                        )}
+                                                                    <div className="flex min-w-0 items-start gap-1">
+                                                                      {/* Text container: allow wrapping but leave room for icon */}
+                                                                      <span className="font-semibold text-gray-900 text-sm break-words flex-1 min-w-0">
+                                                                        {doc.resource_title}
+                                                                      </span>
+
+                                                                      {/* Icon hover stays fixed next to text */}
+                                                                      <span className="flex-shrink-0 relative">
+                                                                        <DescriptionHover
+                                                                          description={getResourceDescription(resource)}
+                                                                          side="top"
+                                                                          align="start"
+                                                                          iconSize="sm"
+                                                                          triggerClassName="text-gray-400 hover:text-indigo-500"
+                                                                          contentClassName="max-w-[200px] break-words"
+                                                                        />
+                                                                      </span>
                                                                     </div>
+
                                                                     <Badge variant="outline" className="text-xs badge-success">
                                                                         {formatSimilarityScore(doc.max_score)}
                                                                     </Badge>

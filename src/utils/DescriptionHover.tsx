@@ -5,6 +5,7 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { Info } from "lucide-react";
+import "./DescriptionHover.css"
 
 interface DescriptionHoverProps {
   description: string;
@@ -62,26 +63,24 @@ export default function DescriptionHover({
         </HoverCardTrigger>
         <HoverCardContent
           className={`
-            w-[400px]        // fixed rectangular width
-            max-w-[1024px]   // max width based on smallest laptop screen
-            h-[250px]        // fixed height
-            bg-white border border-gray-200 shadow-lg rounded-lg p-4
-            overflow-auto break-words
-            ${contentClassName}
+            hover-card-content ${contentClassName}
           `}
           side={side}
           align={align}
         >
           <div className="space-y-2">
-            <div className="flex items-start gap-3">
+            <div className="flex min-w-0 items-start gap-2">
+              {/* Icon: stays fixed size */}
               <div className={`${iconContainerSizeClasses[iconSize]} bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0`}>
                 <Info className={`${iconSizeClasses[iconSize]} text-indigo-600`} />
               </div>
+
+              {/* Text container: flex-1 allows wrapping without forcing single column */}
               <div className="flex-1 min-w-0">
                 <h4 className="font-medium text-gray-900 mb-2 text-sm">Description</h4>
-                <p className="text-sm text-gray-700 leading-relaxed break-words">
+                <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words">
                   {description || "No description available"}
-                </p>
+                </div>
               </div>
             </div>
           </div>

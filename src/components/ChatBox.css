@@ -4,6 +4,7 @@
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 #f8fafc;
+  overflow-x: hidden;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
