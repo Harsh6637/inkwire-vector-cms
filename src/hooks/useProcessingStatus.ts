@@ -6,6 +6,7 @@ export const useProcessingStatus = (resourceId: string | null) => {
   const [chunkCount, setChunkCount] = useState(0);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resourceName, setResourceName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!resourceId) return;
@@ -18,6 +19,7 @@ export const useProcessingStatus = (resourceId: string | null) => {
         setStatus(resp.status);
         setChunkCount(resp.chunkCount || 0);
         setReady(resp.ready);
+        setResourceName(resp.resourceName);
       } catch (err: any) {
         setStatus('error');
         setError(err.message || 'Failed to fetch status');
@@ -31,5 +33,5 @@ export const useProcessingStatus = (resourceId: string | null) => {
     return () => clearInterval(interval);
   }, [resourceId]);
 
-  return { status, chunkCount, ready, error };
+  return { status, chunkCount, ready, error, resourceName };
 };

@@ -31,7 +31,8 @@ const DashboardPage: React.FC<DashboardProps> = () => {
   const [resourceToRemove, setResourceToRemove] = useState<Resource | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState<boolean>(false);
   const [processingResourceId, setProcessingResourceId] = useState<string | null>(null);
-  const { status, chunkCount, ready, error } = useProcessingStatus(processingResourceId);
+  const { status, chunkCount, ready, error, resourceName } = useProcessingStatus(processingResourceId);
+  const [shouldShowContainer, setShouldShowContainer] = useState(false);
 
   const loadResources = (): void => {
     const stored = JSON.parse(sessionStorage.getItem("resources") || "[]") as Resource[];
@@ -105,40 +106,45 @@ const resourceContextValue = {
   refreshResources: () => {}
 };
 
+
+useEffect(() => {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  if (processingResourceId && (status === 'pending' || status === 'processing')) {
+    setShouldShowContainer(true);
+  } else if (status === 'completed' || status === 'error') {
+    // Keep showing for 5 seconds then unmount
+    timer = setTimeout(() => setShouldShowContainer(false), 3000);
+  } else {
+    setShouldShowContainer(false);
+  }
+
+  return () => {
+    if (timer) clearTimeout(timer);
+  };
+}, [processingResourceId, status]);
+
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
       <Header />
         {/* Chunk Process Bar */}
-        {/* Chunk Process Bar - Option 1 keeps the div tag mounted
-        <div className="w-full max-w-7xl mx-auto px-6 overflow-hidden transition-all duration-300 ease-in-out py-2 h-auto">
-          <ProcessingProgressBar
-            status={status}
-            chunkCount={chunkCount}
-            error={error || null}
-          />
-        </div>
-        */}
+
         {/* Chunk Process Bar - unmounts the div tag once the status is changed to completed */}
-      <div
-        className={`w-full max-w-7xl mx-auto px-6 overflow-hidden transition-all duration-300 ease-in-out ${
-          processingResourceId && status !== 'pending' && status !== 'completed'
-            ? 'py-2 h-auto'
-            : 'py-0 h-0'
-        }`}
-      >
-        <ProcessingProgressBar
-          status={status}
-          chunkCount={chunkCount}
-          error={error || null}
-        />
-      </div>
+      {shouldShowContainer && (
+        <div className="flex justify-center pl-5 w-full">
+          <div className="w-4/5 max-w-7xl px-6 pt-2 -mb-9 overflow-hidden transition-all duration-300 ease-in-out">
+            <ProcessingProgressBar
+              status={status}
+              error={error || null}
+              resourceName={resourceName}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="flex justify-center p-5 w-full">
-
         <div className="flex flex-row gap-6 p-6 w-4/5 h-[calc(100vh-5rem)] max-w-7xl">
-
-
-
           {/* Left Panel - Resource Management */}
 
           <div className="flex-[0_0_40%] flex flex-col gap-5 overflow-y-auto bg-white p-6 rounded-2xl shadow-lg border border-slate-100 min-w-80">

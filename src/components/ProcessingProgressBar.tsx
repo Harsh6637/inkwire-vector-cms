@@ -1,104 +1,50 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Info as InfoIcon } from "lucide-react";
 
 interface Props {
   status: "pending" | "processing" | "completed" | "error";
   error?: string | null;
-  chunkCount?: number;
+  resourceName: string;
 }
 
-const ProcessingProgressBar: React.FC<Props> = ({ status, error = null }) => {
-  const [value, setValue] = useState(0);
-  const [visible, setVisible] = useState(true);
-  const valueRef = useRef(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+const ProcessingProgressBar: React.FC<Props> = ({ status, resourceName }) => {
+  const [shouldRender, setShouldRender] = useState(false);
 
-  // Animate progress
   useEffect(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-
-    if (status === "processing" || status === "completed") {
-      if (status === "processing") valueRef.current = 0;
-      intervalRef.current = setInterval(() => {
-        valueRef.current = Math.min(valueRef.current + 1, status === "completed" ? 100 : 99);
-        setValue(valueRef.current);
-        if (valueRef.current >= (status === "completed" ? 100 : 99)) {
-          clearInterval(intervalRef.current!);
-        }
-      }, 15);
-    }
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [status]);
-
-  // Auto-hide after completed/error
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    if (status === "completed") {
-      setVisible(true);
-      timer = setTimeout(() => setVisible(false), 2500);
-    } else if (status === "error") {
-      setVisible(true); // show until manually closed
+    if (resourceName && resourceName.trim() !== "") {
+      setShouldRender(true);
     } else {
-      setVisible(true);
+      setShouldRender(false);
     }
+  }, [status, resourceName]);
 
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [status]);
-
-  if (!visible || status === "pending") return null;
-
-  const trackColor = "bg-gray-200";
-  const barGradient =
-    status === "error"
-      ? "bg-gradient-to-r from-red-500 via-red-600 to-red-700"
-      : "bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700";
-
-  const progressText =
-    status === "processing"
-      ? `Vectorization in progress — ${value}%, document will be ready in a moment for search`
-      : status === "completed"
-      ? "Processing completed!"
-      : status === "error"
-      ? `Error: ${error}`
-      : "Pending...";
+  if (!shouldRender) return null;
 
   return (
-    <div className="w-full">
-      <div className={`${trackColor} h-6 rounded-lg overflow-hidden relative`}>
-        {/* Progress fill */}
-        <div
-          className={`${barGradient} h-full rounded-lg transition-all duration-500 ease-in-out`}
-          style={{ width: `${value}%` }}
-        />
+    <div className="sticky top-0 z-50 w-full">
+      <Alert className="bg-blue-50 border border-blue-300 text-blue-800 flex items-center gap-3 shadow-sm">
+        {/* Info Icon */}
+        <span className="flex items-center">
+          <InfoIcon className="w-4 h-4 text-blue-600" />
+        </span>
 
-        {/* Inner text + spinner */}
-        <div className="absolute inset-0 flex items-center justify-center text-sm font-medium px-2 text-center drop-shadow-md gap-2">
-          {/* Spinner always visible */}
-          <div
-            className="w-4 h-4 border-2 rounded-full animate-spin"
-            style={{
-              borderTopColor: "transparent",
-              borderRightColor: value >= 75 ? "white" : "black",
-              borderBottomColor: value >= 75 ? "white" : "black",
-              borderLeftColor: value >= 75 ? "white" : "black",
-            }}
-          ></div>
-
-          <span
-            className="transition-colors duration-500 ease-in-out"
-            style={{
-              color: value >= 75 ? "white" : "black", // switch text color when progress >= 75%
-            }}
-          >
-            {progressText}
-          </span>
-        </div>
-      </div>
+        {/* Message */}
+        <AlertDescription className="text-sm font-medium flex items-center">
+          {status === "pending" && (
+            <>Preparing <span className="font-semibold">{resourceName}</span>...</>
+          )}
+          {status === "processing" && (
+            <><span className="font-semibold">{resourceName}</span> is being vectorized and will be ready for search shortly.</>
+          )}
+          {status === "completed" && (
+            <><span className="font-semibold">{resourceName}</span> processed successfully!</>
+          )}
+          {status === "error" && (
+            <>Failed to process <span className="font-semibold">{resourceName}</span></>
+          )}
+        </AlertDescription>
+      </Alert>
     </div>
   );
 };
