@@ -12,28 +12,19 @@ const ProcessingProgressBar: React.FC<Props> = ({ status, error = null }) => {
   const valueRef = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // --- Animate progress ---
+  // Animate progress
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
 
-    if (status === "processing") {
-      valueRef.current = 0;
-      setValue(0);
-
+    if (status === "processing" || status === "completed") {
+      if (status === "processing") valueRef.current = 0;
       intervalRef.current = setInterval(() => {
-        if (valueRef.current < 99) {
-          valueRef.current += 1; // adjust speed here
-          setValue(valueRef.current);
-        } else {
+        valueRef.current = Math.min(valueRef.current + 1, status === "completed" ? 100 : 99);
+        setValue(valueRef.current);
+        if (valueRef.current >= (status === "completed" ? 100 : 99)) {
           clearInterval(intervalRef.current!);
         }
       }, 15);
-    }
-
-    if (status === "completed") {
-      valueRef.current = 100;
-      setValue(100);
-      if (intervalRef.current) clearInterval(intervalRef.current);
     }
 
     return () => {
@@ -41,17 +32,15 @@ const ProcessingProgressBar: React.FC<Props> = ({ status, error = null }) => {
     };
   }, [status]);
 
-  // --- Auto-hide logic ---
+  // Auto-hide after completed/error
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     if (status === "completed") {
-      // Show for 2.5s after completion, then hide
-      setVisible(true); // ensure visible immediately
+      setVisible(true);
       timer = setTimeout(() => setVisible(false), 2500);
     } else if (status === "error") {
-      // Optionally hide errors automatically after a short period
-      timer = setTimeout(() => setVisible(false), 2500);
+      setVisible(true); // show until manually closed
     } else {
       setVisible(true);
     }
@@ -63,7 +52,7 @@ const ProcessingProgressBar: React.FC<Props> = ({ status, error = null }) => {
 
   if (!visible || status === "pending") return null;
 
-  const trackColor = "bg-blue-200";
+  const trackColor = "bg-gray-200";
   const barGradient =
     status === "error"
       ? "bg-gradient-to-r from-red-500 via-red-600 to-red-700"
@@ -71,9 +60,9 @@ const ProcessingProgressBar: React.FC<Props> = ({ status, error = null }) => {
 
   const progressText =
     status === "processing"
-      ? "Vectorization in progress, document will be ready shortly"
+      ? `Vectorization in progress — ${value}%, document will be ready in a moment for search`
       : status === "completed"
-      ? "Completed"
+      ? "Processing completed!"
       : status === "error"
       ? `Error: ${error}`
       : "Pending...";
@@ -86,9 +75,28 @@ const ProcessingProgressBar: React.FC<Props> = ({ status, error = null }) => {
           className={`${barGradient} h-full rounded-lg transition-all duration-500 ease-in-out`}
           style={{ width: `${value}%` }}
         />
-        {/* Text inside */}
-        <div className="absolute inset-0 flex items-center justify-center text-sm font-medium px-2 text-center text-white drop-shadow-md">
-          {progressText}
+
+        {/* Inner text + spinner */}
+        <div className="absolute inset-0 flex items-center justify-center text-sm font-medium px-2 text-center drop-shadow-md gap-2">
+          {/* Spinner always visible */}
+          <div
+            className="w-4 h-4 border-2 rounded-full animate-spin"
+            style={{
+              borderTopColor: "transparent",
+              borderRightColor: value >= 75 ? "white" : "black",
+              borderBottomColor: value >= 75 ? "white" : "black",
+              borderLeftColor: value >= 75 ? "white" : "black",
+            }}
+          ></div>
+
+          <span
+            className="transition-colors duration-500 ease-in-out"
+            style={{
+              color: value >= 75 ? "white" : "black", // switch text color when progress >= 75%
+            }}
+          >
+            {progressText}
+          </span>
         </div>
       </div>
     </div>

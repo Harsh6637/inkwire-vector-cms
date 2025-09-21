@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Send, Bot, User, Eye, Clock } from 'lucide-react';
 import ConfirmRemoveDialog from './ConfirmRemoveDialog';
 import PreviewDialog from './PreviewDialog';
-import DescriptionHover, { getResourceDescription } from '../utils/DescriptionHover';
+import DescriptionHover from '@/utils/DescriptionHover';
+import { getResourceDescription } from '@/utils/resourceHelpers';
 import { useResources } from '../hooks/useResources';
 import {
     vectorSearchApi,
@@ -497,7 +498,7 @@ export default function ChatBox() {
                         </Button>
                     </div>
                     <p className="chat-hint">
-                        Ask questions like "show me documents about machine learning" or "find financial reports"
+                        Ask questions like "show me documents about machine learning" or "find available books for Maths"
                     </p>
                 </div>
             </Card>

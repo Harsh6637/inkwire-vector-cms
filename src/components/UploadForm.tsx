@@ -63,6 +63,9 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
   ];
   const allowedExtensions = [".pdf", ".txt", ".md", ".doc", ".docx"];
 
+  //Maximum allowed length for description
+  const MAX_DESCRIPTION_WORDS = 50;
+
   const stripExtension = (filename: string): string => {
     const lastDot = filename.lastIndexOf(".");
     return lastDot === -1 ? filename : filename.substring(0, lastDot);
@@ -349,6 +352,21 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
     }
   };
 
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const words = e.target.value.trim().split(/\s+/).filter(Boolean);
+
+    if (words.length <= MAX_DESCRIPTION_WORDS) {
+      setDescription(e.target.value);
+      setErrors((prev) => ({ ...prev, description: "" })); // clear error
+    } else {
+      // Show error message, do not update description
+      setErrors((prev) => ({
+        ...prev,
+        description: `Maximum ${MAX_DESCRIPTION_WORDS} words allowed. You have ${words.length}.`
+      }));
+    }
+  };
+
   return (
     <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto px-1">
       {/* File Upload Area */}
@@ -398,7 +416,7 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
           type="text"
           value={nameOverride}
           onChange={(e) => setNameOverride(e.target.value)}
-          placeholder="Enter display name"
+          placeholder="Provide a display name for this resource"
           className="text-xs sm:text-sm border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
           disabled={isUploading}
         />
@@ -419,7 +437,7 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
             value={publishersInput}
             onChange={(e) => setPublishersInput(e.target.value)}
             onKeyPress={handlePublisherKeyPress}
-            placeholder="Add publishers"
+            placeholder="Add publishers (comma-separated)"
             className="flex-1 text-xs sm:text-sm border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
             disabled={isUploading}
           />
@@ -470,14 +488,15 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
         <Textarea
           id="description"
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Provide description"
+          onChange={handleDescriptionChange}
+          placeholder="Enter a description for the resource (Maximum 50 words allowed)"
           className="text-xs sm:text-sm border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 min-h-[60px] sm:min-h-[80px] lg:min-h-[100px] resize-none"
           disabled={isUploading}
         />
         {errors.description && (
           <p className="text-xs text-red-600">{errors.description}</p>
         )}
+
       </div>
 
       {/* Tags */}
@@ -492,7 +511,7 @@ export default function UploadForm({ onSuccess }: UploadFormProps) {
             value={tagsInput}
             onChange={(e) => setTagsInput(e.target.value)}
             onKeyPress={handleTagKeyPress}
-            placeholder="Add tags"
+            placeholder="Add tags (comma-separated)"
             className="flex-1 text-xs sm:text-sm border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
             disabled={isUploading}
           />

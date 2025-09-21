@@ -61,7 +61,14 @@ export default function DescriptionHover({
           {children || defaultTrigger}
         </HoverCardTrigger>
         <HoverCardContent
-          className={`max-w-[90vw] sm:max-w-sm bg-white border border-gray-200 shadow-lg rounded-lg p-4 overflow-auto ${contentClassName}`}
+          className={`
+            w-[400px]        // fixed rectangular width
+            max-w-[1024px]   // max width based on smallest laptop screen
+            h-[250px]        // fixed height
+            bg-white border border-gray-200 shadow-lg rounded-lg p-4
+            overflow-auto break-words
+            ${contentClassName}
+          `}
           side={side}
           align={align}
         >
@@ -70,9 +77,9 @@ export default function DescriptionHover({
               <div className={`${iconContainerSizeClasses[iconSize]} bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0`}>
                 <Info className={`${iconSizeClasses[iconSize]} text-indigo-600`} />
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <h4 className="font-medium text-gray-900 mb-2 text-sm">Description</h4>
-                <p className="text-sm text-gray-700 leading-relaxed">
+                <p className="text-sm text-gray-700 leading-relaxed break-words">
                   {description || "No description available"}
                 </p>
               </div>
@@ -84,13 +91,3 @@ export default function DescriptionHover({
   );
 }
 
-// Helper function to extract description from resource objects
-export function getResourceDescription(resource: any): string {
-  if (resource.description && typeof resource.description === 'string') {
-    return resource.description;
-  }
-  if (resource.metadata?.description && typeof resource.metadata.description === 'string') {
-    return resource.metadata.description;
-  }
-  return 'No description available';
-}
